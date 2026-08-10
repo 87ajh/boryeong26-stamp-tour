@@ -645,10 +645,10 @@ ${placeDetails}
         <p className="text-base font-medium leading-relaxed text-center text-stone-600">
           선선한 가을, 보령의 숨은 해양생태로드에서<br />추억도 만들고 선물도 받아가세요~
         </p>
-        <div className="mt-4 flex flex-nowrap gap-2 text-xs overflow-x-auto">
-          <span className="bg-white/90 shadow-sm font-bold px-3 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#83330b' }}>9/14(월)~11/30(월)</span>
-          <span className="bg-white/90 shadow-sm font-bold px-3 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#83330b' }}>만 14세 이상</span>
-          <span className="bg-white/90 shadow-sm font-bold px-3 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#83330b' }}>당첨자 발표 12/7(월)</span>
+        <div className="mt-4 bg-white/90 shadow-sm rounded-xl px-4 py-3 text-sm space-y-1" style={{ color: '#83330b' }}>
+          <p><span className="font-bold">이벤트 기간:</span> 9/14(월)~11/30(월)</p>
+          <p><span className="font-bold">이벤트 대상:</span> 만 14세 이상 누구나</p>
+          <p><span className="font-bold">당첨자 발표:</span> 12/7(월) (※ 해양환경공단 홈페이지)</p>
         </div>
 
         {/* 테스트용 초기화 버튼 - 실제 배포 시 제거 권장 */}
@@ -1137,8 +1137,6 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<StampTourApp />);
 </script>
 <script>
-  // 필수 라이브러리(React/ReactDOM/Babel/lucide-react)가 CDN에서 제대로 로드되지 않았을 경우
-  // (광고차단기, 네트워크 차단, CDN 장애 등) 하얀 화면 대신 명확한 원인을 화면에 표시
   var __missing = [];
   if (typeof React === 'undefined') __missing.push('React');
   if (typeof ReactDOM === 'undefined') __missing.push('ReactDOM');
