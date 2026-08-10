@@ -96,10 +96,10 @@ const AGREEMENTS = [
 이름, 핸드폰 번호, 이메일 주소, 배송지 주소(실물경품 당첨 시에 한함), 참여자가 업로드한 개인 사진
 
 ▪ 보유 및 이용 기간
-이벤트 종료 및 경품 배송 완료 후 3개월간 보관 후 파기 (단, 관계 법령에 따라 보존할 필요가 있는 경우 해당 기간까지 보관)
+~~이벤트 종료 및 경품 배송 완료 후 3개월간 보관 후 파기~~ (단, 관계 법령에 따라 보존할 필요가 있는 경우 해당 기간까지 보관)
 
 ▪ 동의 거부 권리 및 불이익
-귀하는 본 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다. 단, 동의를 거부하실 경우 모바일 스탬프 투어 참여 및 경품 추첨 대상에서 제외됩니다.`,
+귀하는 본 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다. ~~단, 동의를 거부하실 경우 모바일 스탬프 투어 참여 및 경품 추첨 대상에서 제외됩니다.~~`,
   },
   {
     label: '[필수]',
@@ -114,7 +114,7 @@ const AGREEMENTS = [
 참여자 단말기의 실시간 GPS 위치정보
 
 ▪ 보유 및 이용 기간
-스탬프 투어 참여 확인 즉시 파기 (서버에 실시간 위치 동선을 별도 저장하지 않음)
+~~스탬프 투어 참여 확인 즉시 파기 (서버에 실시간 위치 동선을 별도 저장하지 않음)~~
 
 ▪ 동의 거부 권리
 귀하는 위치정보 이용 동의를 거부할 수 있으나, 거부 시 위치 인증을 통한 스탬프 적립이 불가능합니다.`,
@@ -138,7 +138,7 @@ const AGREEMENTS = [
 제공항목: 이름, 핸드폰번호, 배송지 주소
 
 ▪ 위탁 및 보유 기간
-이벤트 종료 및 경품 배송 완료 후 3개월까지(이후 즉시 파기)
+~~이벤트 종료 및 경품 배송 완료 후 3개월까지(이후 즉시 파기)~~
 
 ▪ 동의 거부 관리
 귀하는 본 개인정보 처리위탁 및 재위탁에 대한 동의를 거부할 권리가 있습니다. 단, 동의를 거부하실 경우 모바일 스탬프 투어 참여 및 경품 발송 서비스 이용이 불가능합니다.`,
@@ -275,6 +275,8 @@ export default function StampTourApp() {
   const allAgreed = agreements.every(Boolean);
   // 화면 노출 여부와 무관하게 실제 제출 가능 조건에 3곳 장소인증 완료를 명시적으로 포함
   const canSubmit = allVerified && allAgreed && form.name.trim() && form.phone.trim() && form.email.trim();
+  // 후기인증(선택) 단계에서 사진을 하나라도 등록했는지 여부 (제출완료 모달 버튼을 자동으로 분기하기 위함)
+  const hasAnyPhoto = reviews.some((r) => !!r.photoUrl);
 
   // ===== [테스트용] 중복참여 플래그 초기화 후 처음 화면으로 되돌리기 =====
   const handleResetTest = () => {
@@ -1199,31 +1201,45 @@ ${new Date().toLocaleString('ko-KR')}
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="bg-orange-100 border-2 border-orange-600 rounded-xl p-4">
-                <p className="text-base font-extrabold leading-relaxed text-red-600">
-                  이메일 앱이 열리면 조금 전 업로드하신 후기 사진을<br />
-                  꼭 <span className="underline">'첨부파일'</span>로 수동 추가하여 전송해 주세요!
-                </p>
-              </div>
-              <p className="text-sm leading-relaxed text-stone-600">
-                mailto: 방식은 보안상 사진을 자동으로 첨부할 수 없어요.<br />
-                이메일 앱이 열리면 <span className="font-bold text-orange-600">사진 첨부 버튼</span>을 눌러
-                갤러리에서 후기 사진을 직접 추가한 뒤 전송해주세요.
-              </p>
+              {hasAnyPhoto ? (
+                <>
+                  <div className="bg-orange-100 border-2 border-orange-600 rounded-xl p-4">
+                    <p className="text-base font-extrabold leading-relaxed text-red-600">
+                      이메일 앱이 열리면 조금 전 업로드하신 후기 사진을<br />
+                      꼭 <span className="underline">'첨부파일'</span>로 수동 추가하여 전송해 주세요!
+                    </p>
+                  </div>
+                  <p className="text-sm leading-relaxed text-stone-600">
+                    mailto: 방식은 보안상 사진을 자동으로 첨부할 수 없어요.<br />
+                    이메일 앱이 열리면 <span className="font-bold text-orange-600">사진 첨부 버튼</span>을 눌러
+                    갤러리에서 후기 사진을 직접 추가한 뒤 전송해주세요.
+                  </p>
+                </>
+              ) : (
+                <div className="bg-stone-100 border border-stone-200 rounded-xl p-4">
+                  <p className="text-sm leading-relaxed text-stone-600">
+                    등록하신 후기 사진이 없어서, 사진 없이 응모 내역만 제출돼요.
+                  </p>
+                </div>
+              )}
 
+              {/* 후기인증(선택) 단계에서 사진을 등록했는지 여부에 따라 둘 중 하나의 버튼만 자동으로 표시 */}
               <div className="space-y-2 pt-2">
-                <button
-                  onClick={() => finalizeSubmit(true)}
-                  className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
-                >
-                  후기 사진을 첨부파일로 추가하기
-                </button>
-                <button
-                  onClick={() => finalizeSubmit(false)}
-                  className="w-full py-3 rounded-full text-sm font-bold bg-stone-100 hover:bg-stone-200 text-stone-600"
-                >
-                  후기 사진 없이 제출하기
-                </button>
+                {hasAnyPhoto ? (
+                  <button
+                    onClick={() => finalizeSubmit(true)}
+                    className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                  >
+                    후기 사진을 첨부파일로 추가하기
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => finalizeSubmit(false)}
+                    className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                  >
+                    후기 사진 없이 제출하기
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1343,9 +1359,15 @@ ${new Date().toLocaleString('ko-KR')}
             </div>
             <div className="p-5 overflow-y-auto text-base whitespace-pre-line leading-relaxed text-stone-600">
               {AGREEMENTS[agreementModalIdx].subtitle && (
-                <p className="font-bold text-blue-600 mb-3">{AGREEMENTS[agreementModalIdx].subtitle}</p>
+                <p className="font-bold text-stone-800 mb-3">{AGREEMENTS[agreementModalIdx].subtitle}</p>
               )}
-              {AGREEMENTS[agreementModalIdx].content}
+              {AGREEMENTS[agreementModalIdx].content.split('~~').map((segment, i) =>
+                i % 2 === 1 ? (
+                  <span key={i} className="font-bold text-blue-600">{segment}</span>
+                ) : (
+                  <span key={i}>{segment}</span>
+                )
+              )}
             </div>
             <div className="p-5 pt-0">
               <button
