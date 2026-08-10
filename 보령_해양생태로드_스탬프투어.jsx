@@ -335,15 +335,29 @@ export default function StampTourApp() {
           }
         },
         (error) => {
-          // GPS 수신 실패: 테스트용 모달 표시 (거리 없음)
+          // GPS 수신 실패: 실패 사유별로 안내 메시지를 구분해서 테스트용 모달에 표시
+          // 1=권한 거부, 2=위치 확인 불가, 3=시간 초과
+          let errorMessage = '위치 정보를 수신할 수 없습니다.';
+          if (error.code === 1) {
+            errorMessage = '위치 권한이 거부되었습니다. 브라우저/기기 설정에서 위치 접근을 허용해주세요.';
+          } else if (error.code === 2) {
+            errorMessage = '현재 위치를 확인할 수 없습니다. 실내이거나 GPS 신호가 약한 곳일 수 있어요.';
+          } else if (error.code === 3) {
+            errorMessage = 'GPS 신호를 잡는 데 시간이 오래 걸리고 있어요. 하늘이 잘 보이는 곳에서 다시 시도해주세요.';
+          }
           setTimeout(() => {
             setPlaces((prev) =>
               prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
             );
-            setGpsTestModal({ placeId, distance: null, placeName: place.name });
+            setGpsTestModal({ placeId, distance: null, placeName: place.name, errorMessage });
           }, 1000);
         },
-        { timeout: 3000 }
+        {
+          // 3초는 실제 GPS가 위치를 확정하기엔 너무 짧아 장소와 무관하게 자주 실패했음 → 15초로 연장
+          timeout: 15000,
+          enableHighAccuracy: true, // 정확도를 높여 200m 판정 오차를 줄임 (네트워크 기반 대략 위치 대신 실제 GPS 사용)
+          maximumAge: 10000, // 10초 이내에 확인한 위치가 있으면 재사용해 다음 장소 인증 시 더 빠르게 응답
+        }
       );
     } else {
       // Geolocation API 미지원: 테스트용 모달 표시
@@ -351,7 +365,12 @@ export default function StampTourApp() {
         setPlaces((prev) =>
           prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
         );
-        setGpsTestModal({ placeId, distance: null, placeName: place.name });
+        setGpsTestModal({
+          placeId,
+          distance: null,
+          placeName: place.name,
+          errorMessage: '이 브라우저는 위치 정보 기능을 지원하지 않습니다.',
+        });
       }, 1000);
     }
   };
@@ -565,9 +584,12 @@ ${placeDetails}
         <h1
           className="font-extrabold leading-snug mb-2 text-center"
           style={{
-            fontSize: '17pt',
+            fontSize: 'clamp(13pt, 4.3vw, 17pt)',
             fontFamily: "'GmarketSansMedium', sans-serif",
             color: '#001045',
+            maxWidth: '100%',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
           }}
         >
           보령 해양생태로드 모바일 스탬프 투어
@@ -959,7 +981,9 @@ ${placeDetails}
 
               {gpsTestModal.distance === null && (
                 <div className="bg-orange-100 rounded-xl p-4 border border-orange-100">
-                  <p className="text-sm font-medium text-stone-600">위치 정보를 수신할 수 없습니다.</p>
+                  <p className="text-sm font-medium text-stone-600">
+                    {gpsTestModal.errorMessage || '위치 정보를 수신할 수 없습니다.'}
+                  </p>
                 </div>
               )}
 
