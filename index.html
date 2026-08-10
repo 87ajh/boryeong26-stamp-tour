@@ -1,1 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>보령 해양생태로드 모바일 스탬프 투어</title>
 
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- React 18 -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+<!-- lucide-react UMD 빌드는 내부적으로 소문자 window.react를 참조하므로 별칭을 만들어줌 -->
+<script>window.react = window.React;</script>
+
+<!-- 아이콘 라이브러리 -->
+<script src="https://unpkg.com/lucide-react@0.383.0/dist/umd/lucide-react.js" crossorigin></script>
+
+<!-- JSX를 브라우저에서 바로 변환해주는 Babel Standalone -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  @font-face {
+    font-family: 'GmarketSansMedium';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+  }
+  html, body { margin: 0; padding: 0; background: #FFFBEB; overflow-x: hidden; max-width: 100%; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<script>
+  window.addEventListener('error', function (e) {
+    var root = document.getElementById('root');
+    if (root && !root.hasChildNodes()) {
+      root.innerHTML =
+        '<div style="padding:24px;font-family:sans-serif;color:#7c2d12;background:#fff7ed;">' +
+        '<h2 style="margin-top:0;">화면을 불러오는 중 오류가 발생했습니다</h2>' +
+        '<p style="white-space:pre-wrap;font-size:13px;">' + (e.message || e) + '</p>' +
+        '</div>';
+    }
+  });
+</script>
+<div id="root"></div>
+<script id="app-source" type="text/plain">
+const { useState, useEffect } = React;
+const {
+  MapPin, Camera, CheckCircle2, Mail, Phone, User, X,
+  Loader2, Waves, Shell, Sunset, ImagePlus, ChevronRight, Check, AlertCircle,
+  Lock
+} = LucideReact;
+
+
+// ===== 해양환경공단(KOEM) 로고 이미지 (업로드된 실제 로고, base64 인코딩) =====
+const LOGO_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAAWCAYAAAB30IZkAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA39pVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMTQyIDc5LjE2MDkyNCwgMjAxNy8wNy8xMy0wMTowNjozOSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDplMGIyOTIxMS05MDYxLThhNDUtYWE0NS1kOWFkMzI4YjkwNDMiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6ODVFMzAxNDY0MzU4MTFFQkI4RThCREU2MzMzRkMwNzkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6ODVFMzAxNDU0MzU4MTFFQkI4RThCREU2MzMzRkMwNzkiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIChXaW5kb3dzKSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjJhZjE5NmMwLTA2ZTktNTQ0OC05NGI5LTdiZGZmOTAyN2FkNyIgc3RSZWY6ZG9jdW1lbnRJRD0iYWRvYmU6ZG9jaWQ6cGhvdG9zaG9wOjgwZDkwZWMyLWUwNDItZjE0Ni04NmM2LTNlY2Yz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";
+
+// ===== 경품 이미지 3종 (업로드된 실제 상품권/쌀 이미지, base64 인코딩) =====
+const PRIZE_TICKET_IMAGE = "data:image/webp;base64,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"; // 군헌어촌체험마을 이용권
+const PRIZE_RICE_IMAGE = "data:image/webp;base64,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"; // 만세보령 쌀 삼광미
+const PRIZE_GIFTCARD_IMAGE = "data:image/webp;base64,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"; // 보령사랑상품권
+
+// ===================================================================================================
+// [메일 전송 설정] - mailto: 방식 (프론트엔드 전용, 별도 서버/계정 설정 불필요)
+// ===================================================================================================
+// 📌 작동 방식 안내:
+// 1. 사용자가 '제출완료' 버튼을 누르면 사용자의 기본 이메일 앱(Gmail, Outlook 등)이 자동으로 열립니다.
+// 2. 받는사람/제목/본문이 자동으로 채워진 상태로 이메일 앱이 열립니다.
+// 3. ⚠️ mailto: 방식은 브라우저 보안 정책상 사진 파일을 자동으로 첨부할 수 없습니다.
+//    따라서 사용자가 이메일 앱에서 후기 사진을 '직접' 첨부파일로 추가한 뒤 전송해야 합니다.
+//    (이를 위해 제출 전 강력한 안내 팝업과 메일 본문 상단에 첨부 안내 문구를 넣어두었습니다)
+// 4. 아래 ADMIN_EMAIL 값만 실제 관리자 이메일 주소로 수정하면 바로 사용 가능합니다.
+// ===================================================================================================
+
+const ADMIN_EMAIL = 'boryeong26@koem.or.kr'; // 여기에 실제 관리자(담당자) 이메일 주소를 입력하세요
+
+// ===================================================================================================
+
+// ===== 하베신(Haversine) 공식을 이용한 두 좌표 간 거리 계산 함수 =====
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371000; // 지구 반지름 (미터)
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c); // 거리를 미터 단위로 반환
+};
+
+// ===== 장소 데이터 (시안 기준 3곳, 실제 보령시 좌표 포함) =====
+const INITIAL_PLACES = [
+  {
+    id: 1,
+    name: '소황사구',
+    category: '생태·경관 보전지역',
+    desc: "국내 유일의 해안사구로 국내 첫 해양경관보호구역으로 지정('18.12월)",
+    Icon: Waves,
+    grad: 'from-amber-200 to-orange-300', // 사구의 황금빛 모래 톤
+    latitude: 36.2238,
+    longitude: 126.5244,
+  },
+  {
+    id: 2,
+    name: '무창포 닭벼슬섬',
+    category: '갯벌생태계 복원지역',
+    desc: "무창포~닭벼슬섬 구간 연륙교 제거 및 교량화로 갯벌생태계 복원사업 완료('21.12월)",
+    Icon: Shell, // 갯벌 조개/생물 모양 아이콘 (lucide-react 0.383.0엔 crab/shrimp 아이콘 없음)
+    grad: 'from-stone-300 to-amber-400', // 갯벌의 짙은 흙빛 톤
+    latitude: 36.2404,
+    longitude: 126.5332,
+  },
+  {
+    id: 3,
+    name: '군헌어촌체험마을',
+    category: '낙조·어촌생태 체험지역',
+    desc: '해양환경공단 협력사업지로, 넓은 갯벌을 보유한 살아있는 생태관광 학습장',
+    Icon: Sunset,
+    grad: 'from-orange-300 to-red-400', // 낙조의 다홍빛 톤
+    latitude: 36.3262161,
+    longitude: 126.5405807,
+  },
+];
+
+// ===== 동의서 세부 내용 (시안 텍스트 그대로 반영) =====
+const AGREEMENTS = [
+  {
+    label: '[필수]',
+    title: '개인정보 수집 및 이용 동의',
+    content: `본 이벤트 진행을 위해 아래와 같이 개인정보를 수집·이용합니다. 내용을 자세히 읽으신 후 동의 여부를 결정해 주시기 바랍니다.
+
+▪ 수집·이용 목적
+- 모바일 스탬프 투어 참여자 식별 및 본인 확인(중복참여 방지)
+- 스탬프 인증(위치 기반 및 사진 인증) 처리
+- 이벤트 경품 추첨 및 당첨자 안내, 경품 발송
+- 이벤트 관련 고객 문의 및 민원 처리
+
+▪ 수집·이용 항목
+이름, 핸드폰 번호, 이메일 주소, 배송지 주소(실물경품 당첨 시에 한함), 참여자가 업로드한 개인 사진, 위치정보(GPS)
+
+▪ 보유 및 이용 기간
+이벤트 종료 및 경품 배송 완료 후 3개월간 보관 후 파기 (단, 관계 법령에 따라 보존할 필요가 있는 경우 해당 기간까지 보관)
+
+▪ 동의 거부 권리 및 불이익
+귀하는 본 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다. 단, 동의를 거부하실 경우 모바일 스탬프 투어 참여 및 경품 추첨 대상에서 제외됩니다.`,
+  },
+  {
+    label: '(필수)',
+    title: '위치정보 이용 동의',
+    content: `본 이벤트는 참여자가 지정된 스탬프 존에 방문했는지 확인하기 위해 위치정보를 활용합니다.
+
+▪ 이용 목적
+스탬프 투어 목적지 방문 여부 확인 및 스탬프 자동 적립
+
+▪ 이용 항목
+참여자 단말기의 실시간 GPS 위치정보
+
+▪ 보유 및 이용 기간
+스탬프 투어 참여 확인 즉시 파기 (서버에 실시간 위치 동선을 별도 저장하지 않음)
+
+▪ 동의 거부 권리
+귀하는 위치정보 이용 동의를 거부할 수 있으나, 거부 시 위치 인증을 통한 스탬프 적립이 불가능합니다.`,
+  },
+  {
+    label: '[필수/고지]',
+    title: '개인정보 처리위탁 및 재위탁 동의',
+    content: `본 이벤트의 원활한 운영 및 경품 발송 업무를 위하여 아래와 같이 외부 전문업체에 개인정보 처리 업무를 위탁하여 운영하고 있습니다.
+
+▪ 수탁업체(위탁을 받는 자)
+사회적경제기업 무한상사
+
+▪ 위탁 업무 내용
+- 모바일 스탬프 투어 시스템 구축 및 운영 관리
+- 참여자 본인 확인 및 스탬프 인증(위치·사진) 데이터 처리
+- 고객 상담 및 민원 처리 업무 일체
+
+▪ 재수탁업체 및 업무 내용(경품 발송)
+(택배사 또는 배송대행업체) 실물 경품 배송 및 배송 추적 관리
+제공항목: 이름, 핸드폰번호, 배송지 주소
+
+▪ 위탁 및 보유 기간
+이벤트 종료 및 경품 배송 완료 후 3개월까지(이후 즉시 파기)
+
+▪ 동의 거부 관리
+귀하는 본 개인정보 처리위탁 및 재위탁에 대한 동의를 거부할 권리가 있습니다. 단, 동의를 거부하실 경우 모바일 스탬프 투어 참여 및 경품 발송 서비스 이용이 불가능합니다.`,
+  },
+  {
+    label: '[필수]',
+    title: '이벤트 유의사항 동의',
+    content: `본 이벤트의 유의사항을 꼭 확인해 주세요.
+
+▪ 본 이벤트는 1인 1회 참여를 원칙으로 하며, 부정한 방법(타인 명의 도용 등)으로 참여 시 당첨이 취소될 수 있습니다.
+
+▪ 잘못 입력된 연락처로 인해 경품이 오 발송된 경우 재발송되지 않으므로 개인정보를 정확히 입력해 주시기 바랍니다.
+
+▪ 경품은 이벤트 마감 후 일괄 발송됩니다.`,
+  },
+];
+
+function StampTourApp() {
+  // ===== 스탬프 / 후기 상태 =====
+  const [places, setPlaces] = useState(
+    INITIAL_PLACES.map((p) => ({ ...p, verified: false, verifying: false, reviewed: false }))
+  );
+  const [reviews, setReviews] = useState([]); // { id, placeId, placeName, photoUrl, text }
+
+  // 후기 작성 모달 상태
+  const [reviewModalId, setReviewModalId] = useState(null);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewPhoto, setReviewPhoto] = useState(null); // { url }
+
+  // ===== GPS 인증 관련 상태 =====
+  const [gpsTestModal, setGpsTestModal] = useState(null); // { placeId, distance }
+  const [gpsForceConfirm, setGpsForceConfirm] = useState(null); // 강제 인증 대기 중인 placeId
+
+  // ===== 참여자 정보 =====
+  const [form, setForm] = useState({ name: '', phone: '', email: '' });
+
+  // ===== 동의서 =====
+  const [agreements, setAgreements] = useState([false, false, false, false]);
+  const [agreementModalIdx, setAgreementModalIdx] = useState(null);
+
+  // ===== 응모 완료 / 토스트 / 메일 전송 =====
+  const [toast, setToast] = useState('');
+  const [showMailtoConfirm, setShowMailtoConfirm] = useState(false); // 사진 첨부 안내 확인 모달
+
+  // ===== 개인 인증(이름/핸드폰) 화면 전환 및 중복참여 확인 =====
+  // '제출완료'를 눌러 최종 제출된 경우에만 중복참여로 간주 (그 전 단계는 몇 번을 다시 시작해도 무방)
+  const [authenticated, setAuthenticated] = useState(false); // 이름/핸드폰 확인 후 스탬프 화면으로 전환
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false); // 이 기기에서 이미 최종 제출을 완료했는지
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('stamp_tour_submitted') === 'true') {
+        setAlreadySubmitted(true);
+      }
+    } catch (e) {
+      // localStorage를 사용할 수 없는 환경이면 무시하고 정상 진행
+    }
+  }, []);
+
+  // ===== [진행상황 저장/복원] 이동 중 브라우저를 껐다 켜도 인증 기록이 유지되도록 함 =====
+  // 최초 마운트 시 1회만 저장된 진행상황을 불러와 복원
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('stamp_tour_progress');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.authenticated) setAuthenticated(true);
+        if (data.form) setForm(data.form);
+        if (Array.isArray(data.agreements) && data.agreements.length === 4) {
+          setAgreements(data.agreements);
+        }
+        if (Array.isArray(data.places)) {
+          // 좌표/아이콘 등 고정 정보는 INITIAL_PLACES 기준을 유지하고, verified/reviewed 값만 복원
+          setPlaces((prev) =>
+            prev.map((p) => {
+              const savedPlace = data.places.find((sp) => sp.id === p.id);
+              return savedPlace
+                ? { ...p, verified: !!savedPlace.verified, reviewed: !!savedPlace.reviewed }
+                : p;
+            })
+          );
+        }
+        if (Array.isArray(data.reviews)) setReviews(data.reviews);
+      }
+    } catch (e) {
+      // 저장된 데이터가 손상되었거나 localStorage를 사용할 수 없으면 무시하고 처음부터 진행
+    }
+  }, []);
+
+  // 진행상황이 바뀔 때마다 자동 저장 (이름/핸드폰/이메일, 인증여부, 장소별 인증현황, 후기, 동의여부)
+  useEffect(() => {
+    // 최종 제출을 이미 마친 경우는 더 이상 진행상황을 저장할 필요가 없음
+    if (alreadySubmitted) return;
+    try {
+      const progress = {
+        authenticated,
+        form,
+        agreements,
+        places: places.map((p) => ({ id: p.id, verified: p.verified, reviewed: p.reviewed })),
+        reviews,
+      };
+      localStorage.setItem('stamp_tour_progress', JSON.stringify(progress));
+    } catch (e) {
+      // 저장 공간 부족(용량 초과) 등으로 저장에 실패해도 앱 사용에는 지장 없도록 무시
+      // (주로 사진을 여러 장 첨부해 용량이 큰 경우 발생 가능)
+    }
+  }, [authenticated, form, agreements, places, reviews, alreadySubmitted]);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  };
+
+  // ===== 핸드폰 번호 입력 시 자동으로 '-' 삽입 =====
+  const formatPhoneNumber = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 11); // 숫자만 추출, 최대 11자리
+    if (digits.length < 4) return digits;
+    if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    // 서울 지역번호(02) 등은 고려하지 않고 010 등 휴대폰 번호 기준(3-4-4)으로 처리
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  };
+
+  const allVerified = places.every((p) => p.verified);
+  const allReviewed = places.every((p) => p.reviewed);
+  const verifiedCount = places.filter((p) => p.verified).length;
+  const reviewedCount = places.filter((p) => p.reviewed).length;
+  const allAgreed = agreements.every(Boolean);
+  // 화면 노출 여부와 무관하게 실제 제출 가능 조건에 3곳 장소인증 완료를 명시적으로 포함
+  const canSubmit = allVerified && allAgreed && form.name.trim() && form.phone.trim() && form.email.trim();
+
+  // ===== [테스트용] 중복참여 플래그 초기화 후 처음 화면으로 되돌리기 =====
+  const handleResetTest = () => {
+    try {
+      localStorage.removeItem('stamp_tour_submitted');
+      localStorage.removeItem('stamp_tour_progress');
+    } catch (e) {
+      // localStorage를 사용할 수 없는 환경이면 무시
+    }
+    // 새로고침 대신 모든 화면 상태를 직접 초기값으로 되돌림
+    // (일부 미리보기 환경에서는 location.reload()가 정상 동작하지 않을 수 있어 이 방식을 사용)
+    setAlreadySubmitted(false);
+    setAuthenticated(false);
+    setForm({ name: '', phone: '', email: '' });
+    setPlaces(INITIAL_PLACES.map((p) => ({ ...p, verified: false, verifying: false, reviewed: false })));
+    setReviews([]);
+    setAgreements([false, false, false, false]);
+    setReviewModalId(null);
+    setGpsTestModal(null);
+    setAgreementModalIdx(null);
+    setShowMailtoConfirm(false);
+    showToast('처음 화면으로 초기화되었습니다');
+  };
+
+  // ===== [화면 1] 개인 인증(이름/핸드폰/이메일) 확인 후 스탬프 화면으로 전환 =====
+  const handleStartAuth = () => {
+    if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
+      showToast('이름, 핸드폰 번호, 이메일을 모두 입력해주세요');
+      return;
+    }
+    setAuthenticated(true);
+  };
+
+  // ===== GPS 장소인증 (하베신 공식 + 200m 범위 확인) =====
+  const handleLocationVerify = (placeId) => {
+    const place = places.find((p) => p.id === placeId);
+    if (!place) return;
+
+    setPlaces((prev) => prev.map((p) => (p.id === placeId ? { ...p, verifying: true } : p)));
+
+    // 브라우저 Geolocation API를 통해 사용자의 현재 위치 수신
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // GPS 수신 성공: 사용자의 현재 위도/경도
+          const userLat = position.coords.latitude;
+          const userLon = position.coords.longitude;
+
+          // 하베신 공식으로 사용자 위치와 장소 간 거리 계산 (단위: 미터)
+          const distance = calculateDistance(userLat, userLon, place.latitude, place.longitude);
+
+          // 200m 이내면 바로 인증 성공
+          if (distance <= 200) {
+            setTimeout(() => {
+              setPlaces((prev) =>
+                prev.map((p) => (p.id === placeId ? { ...p, verifying: false, verified: true } : p))
+              );
+              showToast(`✓ ${place.name} 장소인증 완료!`);
+            }, 1000);
+          } else {
+            // 200m 초과: 테스트용 모달 표시 (실제 거리 정보 포함)
+            setTimeout(() => {
+              setPlaces((prev) =>
+                prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
+              );
+              setGpsTestModal({ placeId, distance, placeName: place.name });
+            }, 1000);
+          }
+        },
+        (error) => {
+          // GPS 수신 실패: 테스트용 모달 표시 (거리 없음)
+          setTimeout(() => {
+            setPlaces((prev) =>
+              prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
+            );
+            setGpsTestModal({ placeId, distance: null, placeName: place.name });
+          }, 1000);
+        },
+        { timeout: 3000 }
+      );
+    } else {
+      // Geolocation API 미지원: 테스트용 모달 표시
+      setTimeout(() => {
+        setPlaces((prev) =>
+          prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
+        );
+        setGpsTestModal({ placeId, distance: null, placeName: place.name });
+      }, 1000);
+    }
+  };
+
+  // ===== 테스트 모달에서 '네(테스트 진행)' 버튼 클릭 시 강제 인증 =====
+  const handleForceVerify = () => {
+    if (gpsTestModal) {
+      setPlaces((prev) =>
+        prev.map((p) => (p.id === gpsTestModal.placeId ? { ...p, verified: true } : p))
+      );
+      showToast(`✓ ${gpsTestModal.placeName} 장소인증 완료! (테스트 진행)`);
+      setGpsTestModal(null);
+    }
+  };
+
+  // ===== 테스트 모달에서 '아니오' 버튼 클릭 시 취소 =====
+  const handleCancelVerify = () => {
+    setGpsTestModal(null);
+  };
+
+  // ===== 후기인증 모달 =====
+  const openReviewModal = (placeId) => {
+    setReviewModalId(placeId);
+    setReviewText('');
+    setReviewPhoto(null);
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    // 실제 폰 카메라 사진(수 MB)을 원본 그대로 저장하면 사진 2~3장만으로도
+    // localStorage 용량(보통 5~10MB)을 넘길 수 있음. 앱에 남기는 사본은 화면 미리보기용일 뿐이고
+    // (실제 첨부는 사용자가 이메일 앱에서 원본 갤러리 사진으로 직접 첨부) 화질이 작아도 무방하므로
+    // 캔버스로 축소·압축한 뒤 base64로 저장해 이동 중 재접속해도 안전하게 남도록 처리
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_SIZE = 640; // 긴 변 기준 최대 640px로 축소
+        let { width, height } = img;
+        if (width > height && width > MAX_SIZE) {
+          height = Math.round((height * MAX_SIZE) / width);
+          width = MAX_SIZE;
+        } else if (height > MAX_SIZE) {
+          width = Math.round((width * MAX_SIZE) / height);
+          height = MAX_SIZE;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        // JPEG 60% 품질로 압축 (용량을 대폭 줄이면서도 미리보기 용도로는 충분한 화질)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        setReviewPhoto({ url: compressedDataUrl });
+      };
+      img.onerror = () => {
+        showToast('사진을 불러오지 못했습니다. 다시 시도해주세요.');
+      };
+      img.src = reader.result;
+    };
+    reader.onerror = () => {
+      showToast('사진을 불러오지 못했습니다. 다시 시도해주세요.');
+    };
+    reader.readAsDataURL(file);
+
+    // 같은 파일을 다시 선택해도 onChange가 동작하도록 입력값 초기화
+    e.target.value = '';
+  };
+
+  const submitReview = () => {
+    if (!reviewText.trim()) return;
+    const place = places.find((p) => p.id === reviewModalId);
+    setReviews((prev) => [
+      { id: Date.now(), placeId: reviewModalId, placeName: place.name, photoUrl: reviewPhoto?.url, text: reviewText },
+      ...prev,
+    ]);
+    setPlaces((prev) => prev.map((p) => (p.id === reviewModalId ? { ...p, reviewed: true } : p)));
+    setReviewModalId(null);
+    showToast('후기등록 완료!');
+  };
+
+  // ===== 동의서 =====
+  const confirmAgreement = (idx) => {
+    setAgreements((prev) => prev.map((a, i) => (i === idx ? true : a)));
+    setAgreementModalIdx(null);
+  };
+
+  // ===== 메일 본문 생성 (후기 사진 첨부 안내 + 응모 정보 포맷) =====
+  const buildEmailBody = () => {
+    const completedPlaces = places.filter((p) => p.verified).map((p) => p.name).join(', ') || '없음';
+
+    // 장소별 후기 내용 및 사진 등록 여부 정리
+    const placeDetails = places
+      .map((p) => {
+        const review = reviews.find((r) => r.placeId === p.id);
+        const reviewText = review ? review.text : '미작성';
+        const photoStatus = review && review.photoUrl ? '등록완료' : '미등록';
+        return `* ${p.name}: ${reviewText} (사진 등록 여부: ${photoStatus})`;
+      })
+      .join('\n');
+
+    return `★[필수 확인] 메일 발송 전, 아래 스탬프 투어 참여 시 등록했던 후기 사진을 이메일의 '첨부파일'로 꼭 추가해서 전송해 주세요!
+사진이 첨부되지 않으면 경품 응모가 취소될 수 있습니다. ★
+
+[보령 해양생태로드 모바일 스탬프 투어 응모 정보]
+
+1. 참가자 인적사항
+- 이름: ${form.name}
+- 핸드폰 번호: ${form.phone}
+- 이메일: ${form.email}
+
+2. 스탬프 및 후기 작성 현황
+- 완료한 스탬프 장소: ${completedPlaces}
+- 장소별 후기 내용 및 사진 등록 여부:
+${placeDetails}
+
+3. 약관 동의 현황
+- 동의 여부: 필수 동의 4종(개인정보 수집·이용, 위치정보 이용, 개인정보 처리위탁, 이벤트 유의사항) 전원 동의 완료
+--------------------------------------------------`;
+  };
+
+  // ===== '제출완료' 버튼 클릭 시: 먼저 사진 첨부 안내 모달을 띄움 =====
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    setShowMailtoConfirm(true);
+  };
+
+  // ===== 안내 모달에서 '확인' 클릭 시: mailto: 링크로 메일 앱 실행 =====
+  const openMailClient = () => {
+    const subject = encodeURIComponent(`[보령 해양생태로드 스탬프투어] ${form.name}님 응모`);
+    const body = encodeURIComponent(buildEmailBody());
+    // mailto: 링크는 파일을 자동 첨부할 수 없으므로, 사용자가 이메일 앱에서 직접 사진을 첨부해야 함
+    const mailtoLink = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
+
+    window.location.href = mailtoLink; // 사용자의 기본 이메일 앱 실행
+    setShowMailtoConfirm(false);
+    // 최종 제출을 완료한 시점부터만 '참여함'으로 간주 (그 전까지는 중복참여로 걸리지 않음)
+    try {
+      localStorage.setItem('stamp_tour_submitted', 'true');
+      localStorage.removeItem('stamp_tour_progress'); // 제출 완료했으니 임시 진행상황 저장분은 정리
+    } catch (e) {
+      // localStorage를 사용할 수 없는 환경이면 무시
+    }
+    // 별도의 '응모완료' 화면 대신, 아래의 '참여 완료' 화면을 그대로 재사용해 안내 중복을 없앰
+    setAlreadySubmitted(true);
+  };
+
+  // ===== 이미 참여 완료(중복참여) 안내 화면 =====
+  if (alreadySubmitted) {
+    return (
+      <div className="min-h-screen w-full max-w-md mx-auto overflow-x-hidden bg-orange-50 flex flex-col items-center justify-center px-8 text-center">
+        <div className="w-24 h-24 rounded-full bg-orange-500 flex items-center justify-center mb-6">
+          <span className="text-5xl">👍</span>
+        </div>
+        <h1 className="text-2xl font-extrabold mb-3 text-stone-800">이미 참여 완료하셨습니다</h1>
+        <p className="leading-relaxed text-base text-stone-600">
+          보령 해양생태로드 스탬프 투어는<br />1인 1회 참여만 가능합니다.
+        </p>
+        <p className="leading-relaxed text-sm text-stone-500 mt-2">
+          참여해주셔서 감사합니다.<br />당첨자 발표는 <span className="font-bold">12월 7일(월)</span>입니다.
+        </p>
+
+        {/* 테스트용 초기화 버튼 - 실제 배포 시 제거 권장 */}
+        <button
+          onClick={handleResetTest}
+          className="mt-8 text-xs text-stone-400 underline underline-offset-2 hover:text-stone-600"
+        >
+          🔧 테스트용 초기화 (처음 화면으로)
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen w-full max-w-md mx-auto overflow-x-hidden bg-amber-50 pb-16 relative">
+      {/* G마켓 산스(Medium) 웹폰트 로드 - 헤드 타이틀 전용 + 모바일 가로 넘침 방지용 box-sizing 통일 */}
+      <style>{`
+        * {
+          box-sizing: border-box;
+        }
+        @font-face {
+          font-family: 'GmarketSansMedium';
+          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
+          font-weight: normal;
+          font-style: normal;
+        }
+      `}</style>
+
+      {/* ===== 토스트 알림 ===== */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-stone-800 text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg">
+          {toast}
+        </div>
+      )}
+
+      {/* ===== 헤더 (소황사구·무창포 닭벼슬섬·군헌마을 그라데이션을 이어붙인 배경) ===== */}
+      <div
+        className="px-6 pt-8 pb-6 rounded-b-3xl shadow-sm border-b-2"
+        style={{
+          background: 'linear-gradient(135deg, #fde68a 0%, #fdba74 35%, #fbbf24 65%, #f87171 100%)',
+          borderColor: '#c2410c',
+        }}
+      >
+        {/* 해양환경공단 로고 (기존 대비 80% 크기) */}
+        <div className="mb-3">
+          <img src={LOGO_IMAGE} alt="해양환경공단 KOEM" style={{ height: '19.2px', width: 'auto' }} />
+        </div>
+
+        <h1
+          className="font-extrabold leading-snug mb-2 text-center"
+          style={{
+            fontSize: '17pt',
+            fontFamily: "'GmarketSansMedium', sans-serif",
+            color: '#001045',
+          }}
+        >
+          보령 해양생태로드 모바일 스탬프 투어
+        </h1>
+        <p className="text-base font-medium leading-relaxed text-center text-stone-600">
+          선선한 가을, 보령의 숨은 해양생태로드에서<br />추억도 만들고 선물도 받아가세요~
+        </p>
+        <div className="mt-4 flex flex-nowrap gap-2 text-xs overflow-x-auto">
+          <span className="bg-white/90 shadow-sm font-bold px-3 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#83330b' }}>9/14(월)~11/30(월)</span>
+          <span className="bg-white/90 shadow-sm font-bold px-3 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#83330b' }}>만 14세 이상</span>
+          <span className="bg-white/90 shadow-sm font-bold px-3 py-1.5 rounded-full whitespace-nowrap" style={{ color: '#83330b' }}>당첨자 발표 12/7(월)</span>
+        </div>
+
+        {/* 테스트용 초기화 버튼 - 실제 배포 시 제거 권장 */}
+        <button
+          onClick={handleResetTest}
+          className="mt-3 text-xs text-stone-500 underline underline-offset-2 hover:text-stone-700"
+        >
+          🔧 테스트용 초기화
+        </button>
+      </div>
+
+      {/* ===== 경품 정보 ===== */}
+      <div className="px-6 mt-4">
+        <div className="bg-white rounded-2xl border border-orange-200 p-4 shadow-sm">
+          <p className="text-base font-extrabold text-orange-600 mb-3 flex items-center gap-1">
+            🎁 경품 안내
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { image: PRIZE_TICKET_IMAGE, count: '추첨 60명', name: '군헌체험마을 이용권 2만원권' },
+              { image: PRIZE_RICE_IMAGE, count: '추첨 40명', name: '만세보령 쌀(삼광미) 4kg' },
+              { image: PRIZE_GIFTCARD_IMAGE, count: '선착순 200명', name: '보령사랑상품권\n1만원권' },
+            ].map((prize, i) => (
+              <div key={i} className="flex flex-col items-center text-center">
+                <div className="w-full aspect-square rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center mb-2 shadow-sm overflow-hidden p-1.5">
+                  <img src={prize.image} alt={prize.name} className="w-full h-full object-contain" />
+                </div>
+                <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full mb-1 whitespace-nowrap">
+                  {prize.count}
+                </span>
+                <span className="text-xs font-semibold leading-tight text-stone-800" style={{ whiteSpace: 'pre-line' }}>{prize.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {!authenticated && (
+        /* ===== [화면 1] 개인 인증 (이름/핸드폰 번호로 중복참여 확인 후 스탬프 화면으로 이동) ===== */
+        <div className="px-6 mt-4">
+          <div className="bg-white rounded-2xl border border-orange-200 p-5 shadow-sm">
+            <p className="text-base font-extrabold text-orange-600 mb-1">🙋 참여자 확인</p>
+            <p className="text-sm text-stone-500 mb-4">이름, 핸드폰 번호, 이메일을 입력하면 스탬프 투어를 시작할 수 있어요</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-bold flex items-center gap-1 mb-1.5 text-stone-800">
+                  <User className="w-4 h-4" /> 이름
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="이름을 입력해주세요"
+                  className="w-full border border-orange-100 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-stone-800"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-bold flex items-center gap-1 mb-1.5 text-stone-800">
+                  <Phone className="w-4 h-4" /> 핸드폰 번호
+                </label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: formatPhoneNumber(e.target.value) })}
+                  placeholder="010-0000-0000"
+                  maxLength={13}
+                  className="w-full border border-orange-100 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-stone-800"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-bold flex items-center gap-1 mb-1.5 text-stone-800">
+                  <Mail className="w-4 h-4" /> 이메일
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="example@email.com"
+                  className="w-full border border-orange-100 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-stone-800"
+                />
+              </div>
+
+              <button
+                onClick={handleStartAuth}
+                className="w-full py-3.5 rounded-2xl text-lg font-extrabold transition bg-orange-500 text-white hover:bg-orange-600"
+              >
+                확인 및 시작하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {authenticated && (
+      <>
+      {/* ===== 진행 상황 바 (장소인증만 필수) ===== */}
+      <div className="px-6 mt-4">
+        <div className="bg-orange-100 rounded-2xl shadow-md px-5 py-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-base font-bold text-orange-600">장소 인증 현황</span>
+            <span className="text-base font-extrabold text-orange-600">{verifiedCount} / 3</span>
+          </div>
+          <div className="w-full h-2.5 bg-orange-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-orange-500 rounded-full transition-all duration-500"
+              style={{ width: `${(verifiedCount / 3) * 100}%` }}
+            />
+          </div>
+          {reviewedCount > 0 && (
+            <p className="text-sm font-medium mt-2 text-stone-500">후기 등록: {reviewedCount}건 (선택사항)</p>
+          )}
+        </div>
+      </div>
+
+      {/* ===== 스탬프 장소 카드 ===== */}
+      <div className="px-6 mt-6 space-y-4">
+        <div className="flex items-center gap-2 px-1">
+          <ChevronRight className="w-4 h-4 text-orange-600" />
+          <h2 className="text-lg font-extrabold text-stone-800">스탬프 인증</h2>
+        </div>
+        {places.map((place) => {
+          const { Icon } = place;
+          return (
+            <div key={place.id} className="bg-white rounded-2xl shadow-md overflow-hidden border border-orange-200">
+              <div className={`h-28 bg-gradient-to-br ${place.grad} flex items-center justify-between px-5 relative`}>
+                <div>
+                  <span className="text-sm font-bold text-white bg-black/25 px-2 py-1 rounded-full">
+                    {place.category}
+                  </span>
+                  <p className="text-white text-xl font-extrabold mt-2 drop-shadow-md">{place.name}</p>
+                </div>
+                <Icon className="w-10 h-10 text-white/90" />
+                {/* 인증 완료 스탬프 마크 (최초 버전: 빨간 원형 도장) */}
+                {place.verified ? (
+                  <div className="absolute -right-2 -bottom-3 w-16 h-16 rounded-full border-4 border-white bg-red-500/90 flex items-center justify-center -rotate-12 shadow-lg">
+                    <span className="text-xs font-extrabold leading-tight text-center text-white">인증<br />완료</span>
+                  </div>
+                ) : (
+                  /* 미획득 스탬프 - 연한 회색 톤으로 흐림 처리 + 잠금 아이콘 */
+                  <div className="absolute -right-2 -bottom-3 w-16 h-16 rounded-full border-4 border-white bg-stone-100 flex items-center justify-center opacity-50">
+                    <Lock className="w-6 h-6 text-stone-400" />
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4">
+                <p className="text-base leading-relaxed mb-4 text-stone-600">{place.desc}</p>
+
+                <div className="flex gap-2">
+                  {/* 장소인증 버튼 - GPS 인증 (필수) */}
+                  <button
+                    onClick={() => handleLocationVerify(place.id)}
+                    disabled={place.verified || place.verifying}
+                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl text-sm font-bold transition
+                      ${place.verified
+                        ? 'bg-orange-100 text-orange-600'
+                        : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      {place.verifying ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> GPS 확인중
+                        </>
+                      ) : place.verified ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" /> 장소인증 완료
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="w-4 h-4" /> 장소인증
+                        </>
+                      )}
+                    </div>
+                    {!place.verifying && (
+                      <span className="text-xs font-semibold opacity-90">필수</span>
+                    )}
+                  </button>
+
+                  {/* 후기인증 버튼 - 모달 오픈 (선택사항) */}
+                  <button
+                    onClick={() => openReviewModal(place.id)}
+                    disabled={!place.verified || place.reviewed}
+                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl text-sm font-bold transition
+                      ${place.reviewed
+                        ? 'bg-amber-100 text-amber-700'
+                        : place.verified
+                        ? 'bg-stone-700 text-white hover:bg-stone-800'
+                        : 'bg-stone-100 text-stone-400'}`}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      {place.reviewed ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" /> 후기인증 완료
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-4 h-4" /> 후기인증
+                        </>
+                      )}
+                    </div>
+                    <span className="text-xs font-semibold opacity-90">선택</span>
+                  </button>
+                </div>
+                {!place.verified && (
+                  <p className="text-sm font-medium mt-2 text-stone-500">※ 장소인증 완료 후 후기인증이 가능합니다</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ===== 후기 목록 ===== */}
+      {reviews.length > 0 && (
+        <div className="px-6 mt-7">
+          <h2 className="text-lg font-extrabold px-1 mb-3 text-stone-800">후기 목록</h2>
+          <div className="space-y-3">
+            {reviews.map((r) => (
+              <div key={r.id} className="bg-white rounded-xl shadow-md border border-orange-200 p-3 flex gap-3">
+                {r.photoUrl ? (
+                  <img src={r.photoUrl} alt={r.placeName} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <ImagePlus className="w-6 h-6 text-orange-600" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-orange-600">{r.placeName}</p>
+                  <p className="text-base line-clamp-2 text-stone-800">{r.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== 이벤트 응모 섹션 (인증 완료 후 항상 표시, 제출은 3곳 인증 완료 시에만 가능) ===== */}
+      <div className="px-6 mt-8 space-y-4">
+        <div className="flex items-center gap-2 px-1">
+          <ChevronRight className="w-4 h-4 text-orange-600" />
+          <h2 className="text-lg font-extrabold text-stone-800">이벤트 응모 및 참여자 정보</h2>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-md border border-orange-200 p-5">
+          {/* 참여자 확인 완료 안내 (이름/핸드폰/이메일은 앞서 확인한 정보를 그대로 사용) */}
+          <div className="bg-orange-100 rounded-xl px-4 py-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="w-20 flex-shrink-0 font-bold text-orange-600">이름</span>
+              <span className="text-stone-800">{form.name}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="w-20 flex-shrink-0 font-bold text-orange-600">핸드폰번호</span>
+              <span className="text-stone-800">{form.phone}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="w-20 flex-shrink-0 font-bold text-orange-600">이메일 주소</span>
+              <span className="text-stone-800">{form.email}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== 필수 동의 체크박스 ===== */}
+        <div className="flex items-center gap-2 px-1">
+          <ChevronRight className="w-4 h-4 text-orange-600" />
+          <h2 className="text-lg font-extrabold text-stone-800">필수 동의 항목</h2>
+        </div>
+        <div className="bg-white rounded-2xl shadow-md border border-orange-200 p-5 space-y-3">
+          {AGREEMENTS.map((a, idx) => (
+            <button
+              key={idx}
+              onClick={() => setAgreementModalIdx(idx)}
+              className="w-full flex items-center justify-between gap-3 py-2 text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border-2
+                    ${agreements[idx] ? 'bg-orange-500 border-orange-400' : 'border-orange-50'}`}
+                >
+                  {agreements[idx] && <Check className="w-3.5 h-3.5 text-white" />}
+                </span>
+                <span className="text-base font-medium text-stone-800">
+                  {a.label} {a.title}
+                </span>
+              </div>
+              <ChevronRight className="w-4 h-4 flex-shrink-0 text-stone-400" />
+            </button>
+          ))}
+        </div>
+
+        {/* ===== 제출완료 버튼 ===== */}
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className={`w-full py-3.5 rounded-2xl text-lg font-extrabold transition
+            ${canSubmit
+              ? 'bg-orange-500 text-white shadow-lg hover:bg-orange-600'
+              : 'bg-stone-200 text-stone-400'}`}
+        >
+          제출완료
+        </button>
+      </div>
+      </>
+      )}
+
+      {/* ===== 사진 첨부 안내 모달 (제출완료 클릭 시 - mailto 전송 전 최종 확인) ===== */}
+      {showMailtoConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
+          <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <div className="bg-orange-600 px-6 py-6 text-center">
+              <AlertCircle className="w-10 h-10 text-white mx-auto mb-2" />
+              <h3 className="text-xl font-extrabold text-white">잠깐! 필수 확인사항</h3>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-orange-100 border-2 border-orange-600 rounded-xl p-4">
+                <p className="text-base font-extrabold leading-relaxed text-red-600">
+                  이메일 앱이 열리면 조금 전 업로드하신 후기 사진을<br />
+                  꼭 <span className="underline">'첨부파일'</span>로 수동 추가하여 전송해 주세요!
+                </p>
+              </div>
+              <p className="text-sm leading-relaxed text-stone-600">
+                mailto: 방식은 보안상 사진을 자동으로 첨부할 수 없어요.<br />
+                이메일 앱이 열리면 <span className="font-bold text-orange-600">사진 첨부 버튼</span>을 눌러
+                갤러리에서 후기 사진을 직접 추가한 뒤 전송해주세요.
+              </p>
+              <p className="text-sm font-medium text-stone-500">
+                ※ 사진이 첨부되지 않으면 경품 응모가 취소될 수 있습니다.
+              </p>
+              <p className="text-xs text-stone-400">
+                아직 후기 사진을 등록 안 하셨다면, 아래 "돌아가서 사진 첨부하기"를 눌러 먼저 등록해주세요.
+              </p>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowMailtoConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-stone-100 hover:bg-stone-200 text-stone-600"
+                >
+                  돌아가서 사진 첨부하기
+                </button>
+                <button
+                  onClick={openMailClient}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                >
+                  확인, 메일 앱 열기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== GPS 인증 테스트 모달 (200m 범위 벗어났을 때) ===== */}
+      {gpsTestModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
+          <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <div className="bg-orange-600 px-6 py-6">
+              <div className="flex items-center gap-3 mb-2">
+                <AlertCircle className="w-6 h-6 text-white" />
+                <h3 className="text-xl font-extrabold text-white">위치 인증 확인</h3>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="font-bold text-base text-stone-800">📍 {gpsTestModal.placeName}</p>
+
+              {gpsTestModal.distance !== null && (
+                <div className="bg-orange-100 rounded-xl p-4 border border-orange-100">
+                  <p className="text-sm font-medium mb-1 text-stone-600">현재 위치와의 거리:</p>
+                  <p className="text-2xl font-extrabold text-orange-600">{gpsTestModal.distance}m</p>
+                  <p className="text-sm font-medium mt-2 text-stone-500">
+                    ※ 해당 장소의 200m 이내에 있지 않습니다.
+                  </p>
+                </div>
+              )}
+
+              {gpsTestModal.distance === null && (
+                <div className="bg-orange-100 rounded-xl p-4 border border-orange-100">
+                  <p className="text-sm font-medium text-stone-600">위치 정보를 수신할 수 없습니다.</p>
+                </div>
+              )}
+
+              <p className="text-sm leading-relaxed text-stone-600">
+                <span className="font-bold text-stone-800">테스트 모드:</span> 아래 버튼으로 스탬프를 강제로 찍을 수 있습니다.
+              </p>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleCancelVerify}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-stone-100 hover:bg-stone-200 text-stone-600"
+                >
+                  아니오
+                </button>
+                <button
+                  onClick={handleForceVerify}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                >
+                  네 (테스트 진행)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 후기인증 모달 ===== */}
+      {reviewModalId !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+          <div className="w-full max-w-md bg-white rounded-t-3xl p-5 pb-8 overflow-y-auto" style={{ maxHeight: '85vh' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-extrabold text-stone-800">
+                {places.find((p) => p.id === reviewModalId)?.name} 후기인증
+              </h3>
+              <button onClick={() => setReviewModalId(null)}>
+                <X className="w-5 h-5 text-stone-500" />
+              </button>
+            </div>
+
+            {/* 사진 업로드 영역 */}
+            <label className="block w-full border-2 border-dashed border-orange-400 rounded-2xl h-32 flex flex-col items-center justify-center cursor-pointer mb-4 overflow-hidden bg-orange-100">
+              {reviewPhoto ? (
+                <img src={reviewPhoto.url} alt="미리보기" className="w-full h-full object-cover" />
+              ) : (
+                <>
+                  <Camera className="w-7 h-7 mb-1 text-orange-600" />
+                  <span className="text-sm font-semibold text-orange-600">사진 촬영 / 앨범에서 선택</span>
+                </>
+              )}
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            </label>
+
+            {/* 후기 텍스트 */}
+            <textarea
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              placeholder="방문 후기를 남겨주세요 (사진과 함께라면 당첨 확률 UP!)"
+              rows={4}
+              className="w-full border border-orange-100 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none mb-4 text-stone-800"
+            />
+
+            <button
+              onClick={submitReview}
+              disabled={!reviewText.trim()}
+              className="w-full py-3 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600 disabled:bg-stone-200 disabled:text-stone-400"
+            >
+              후기 등록하기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 동의서 상세 모달 ===== */}
+      {agreementModalIdx !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
+          <div className="w-full max-w-md bg-white rounded-2xl flex flex-col" style={{ maxHeight: '80vh' }}>
+            <div className="flex items-center justify-between p-5 border-b border-orange-100">
+              <h3 className="text-lg font-extrabold text-stone-800">{AGREEMENTS[agreementModalIdx].title}</h3>
+              <button onClick={() => setAgreementModalIdx(null)}>
+                <X className="w-5 h-5 text-stone-500" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto text-base whitespace-pre-line leading-relaxed text-stone-600">
+              {AGREEMENTS[agreementModalIdx].content}
+            </div>
+            <div className="p-5 pt-0">
+              <button
+                onClick={() => confirmAgreement(agreementModalIdx)}
+                className="w-full py-3 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+              >
+                내용을 확인했으며 동의합니다
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<StampTourApp />);
+</script>
+<script>
+  var __src = document.getElementById('app-source').textContent;
+  var __output = Babel.transform(__src, {
+    presets: [['react', { runtime: 'classic' }]],
+    filename: 'app.jsx',
+  }).code;
+  var __script = document.createElement('script');
+  __script.textContent = __output;
+  document.body.appendChild(__script);
+</script>
+</body>
+</html>
