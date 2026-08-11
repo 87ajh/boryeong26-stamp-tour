@@ -34,8 +34,8 @@
 <script id="app-source" type="text/plain">
 const { useState, useEffect } = React;
 const {
-  MapPin, Camera, CheckCircle2, Mail, Phone, User, X,
-  Loader2, Waves, Shell, Sunset, ImagePlus, ChevronRight, Check, AlertCircle,
+  MapPin, CheckCircle2, Mail, Phone, User, X,
+  Loader2, Waves, Shell, Sunset, ChevronRight, Check, AlertCircle,
   Lock
 } = LucideReact;
 
@@ -200,12 +200,7 @@ function StampTourApp() {
   const [places, setPlaces] = useState(
     INITIAL_PLACES.map((p) => ({ ...p, verified: false, verifying: false, reviewed: false }))
   );
-  const [reviews, setReviews] = useState([]); // { id, placeId, placeName, photoUrl, text }
-
-  // 후기 작성 모달 상태
-  const [reviewModalId, setReviewModalId] = useState(null);
-  const [reviewText, setReviewText] = useState('');
-  const [reviewPhoto, setReviewPhoto] = useState(null); // { url }
+  const [reviews, setReviews] = useState([]); // { id, placeId, placeName, photoUrl, text } - 최종 제출 시엔 항상 빈 배열이며, 응모내역 조회의 '사진 재송부/등록' 기능에서만 채워짐
 
   // ===== GPS 인증 관련 상태 =====
   const [gpsTestModal, setGpsTestModal] = useState(null); // { placeId, distance }
@@ -309,14 +304,10 @@ function StampTourApp() {
   };
 
   const allVerified = places.every((p) => p.verified);
-  const allReviewed = places.every((p) => p.reviewed);
   const verifiedCount = places.filter((p) => p.verified).length;
-  const reviewedCount = places.filter((p) => p.reviewed).length;
   const allAgreed = agreements.every(Boolean);
   // 화면 노출 여부와 무관하게 실제 제출 가능 조건에 3곳 장소인증 완료를 명시적으로 포함
   const canSubmit = allVerified && allAgreed && form.name.trim() && form.phone.trim() && form.email.trim();
-  // 후기인증(선택) 단계에서 사진을 하나라도 등록했는지 여부 (제출완료 모달 버튼을 자동으로 분기하기 위함)
-  const hasAnyPhoto = reviews.some((r) => !!r.photoUrl);
 
   // ===== [테스트용] 중복참여 플래그 초기화 후 처음 화면으로 되돌리기 =====
   const handleResetTest = () => {
@@ -450,14 +441,7 @@ function StampTourApp() {
     setGpsTestModal(null);
   };
 
-  // ===== 후기인증 모달 =====
-  const openReviewModal = (placeId) => {
-    setReviewModalId(placeId);
-    setReviewText('');
-    setReviewPhoto(null);
-  };
-
-  // ===== 사진 파일을 리사이즈·압축해서 base64로 변환하는 공용 함수 (후기 등록/사진 재송부 공통 사용) =====
+  // ===== 사진 파일을 리사이즈·압축해서 base64로 변환하는 공용 함수 (응모내역 조회 화면의 '사진 재송부/등록' 기능에서 사용) =====
   // 실제 폰 카메라 사진(수 MB)을 원본 그대로 저장하면 사진 몇 장만으로도 localStorage 용량을 넘길 수 있음.
   // 앱에 남기는 사본은 화면 미리보기용일 뿐이고(실제 첨부는 사용자가 이메일 앱에서 직접 첨부) 화질이 작아도
   // 무방하므로 캔버스로 축소·압축한 뒤 base64로 저장
@@ -490,32 +474,6 @@ function StampTourApp() {
     reader.readAsDataURL(file);
   };
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-
-    compressImageFile(
-      file,
-      (compressedDataUrl) => setReviewPhoto({ url: compressedDataUrl }),
-      () => showToast('사진을 불러오지 못했습니다. 다시 시도해주세요.')
-    );
-
-    // 같은 파일을 다시 선택해도 onChange가 동작하도록 입력값 초기화
-    e.target.value = '';
-  };
-
-  const submitReview = () => {
-    if (!reviewText.trim()) return;
-    const place = places.find((p) => p.id === reviewModalId);
-    setReviews((prev) => [
-      { id: Date.now(), placeId: reviewModalId, placeName: place.name, photoUrl: reviewPhoto?.url, text: reviewText },
-      ...prev,
-    ]);
-    setPlaces((prev) => prev.map((p) => (p.id === reviewModalId ? { ...p, reviewed: true } : p)));
-    setReviewModalId(null);
-    showToast('후기등록 완료!');
-  };
-
   // ===== 동의서 =====
   const confirmAgreement = (idx) => {
     setAgreements((prev) => prev.map((a, i) => (i === idx ? true : a)));
@@ -526,22 +484,11 @@ function StampTourApp() {
   const buildEmailBody = (withPhotoReminder) => {
     const completedPlaces = places.filter((p) => p.verified).map((p) => p.name).join(', ') || '없음';
 
-    // 장소별 후기 내용 및 사진 등록 여부 정리
-    const placeDetails = places
-      .map((p) => {
-        const review = reviews.find((r) => r.placeId === p.id);
-        const reviewText = review ? review.text : '미작성';
-        const photoStatus = review && review.photoUrl ? '등록완료' : '미등록';
-        return `* ${p.name}: ${reviewText} (사진 등록 여부: ${photoStatus})`;
-      })
-      .join('\n');
-
     const header = withPhotoReminder
-      ? `★[필수 확인] 메일 발송 전, 아래 스탬프 투어 참여 시 등록했던 후기 사진을 이메일의 '첨부파일'로 꼭 추가해서 전송해 주세요!
-사진이 첨부되지 않으면 경품 응모가 취소될 수 있습니다. ★
+      ? `★[필수 확인] 메일 발송 전, 후기 사진을 이메일의 '첨부파일'로 꼭 추가해서 전송해 주세요! ★
 
 `
-      : `[안내] 참가자가 '후기 사진 없이 제출하기'를 선택하여 사진 첨부 없이 응모합니다.
+      : `[안내] 참가자가 '후기사진 없이 메일 제출 완료하기'를 선택하여 사진 첨부 없이 응모합니다.
 
 `;
 
@@ -552,10 +499,8 @@ function StampTourApp() {
 - 핸드폰 번호: ${form.phone}
 - 이메일: ${form.email}
 
-2. 스탬프 및 후기 작성 현황
+2. 스탬프 인증 현황
 - 완료한 스탬프 장소: ${completedPlaces}
-- 장소별 후기 내용 및 사진 등록 여부:
-${placeDetails}
 
 3. 약관 동의 현황
 - 동의 여부: 필수 동의 4종(개인정보 수집·이용, 위치정보 이용, 개인정보 처리위탁, 이벤트 유의사항) 전원 동의 완료
@@ -925,7 +870,7 @@ ${new Date().toLocaleString('ko-KR')}
         <h1
           className="font-extrabold leading-snug mb-2 text-center"
           style={{
-            fontSize: 'clamp(15pt, 5vw, 19pt)',
+            fontSize: 'clamp(0.85rem, 4.8vw, 1.3rem)',
             fontFamily: "'GmarketSansMedium', sans-serif",
             backgroundImage: 'linear-gradient(90deg, #0490db 0%, #2f91c2 25%, #808f8a 50%, #d67a2d 75%, #ee6b01 100%)',
             WebkitBackgroundClip: 'text',
@@ -1060,9 +1005,6 @@ ${new Date().toLocaleString('ko-KR')}
               style={{ width: `${(verifiedCount / 3) * 100}%` }}
             />
           </div>
-          {reviewedCount > 0 && (
-            <p className="text-sm font-medium mt-2 text-stone-500">후기 등록: {reviewedCount}건 (선택사항)</p>
-          )}
         </div>
       </div>
 
@@ -1100,93 +1042,34 @@ ${new Date().toLocaleString('ko-KR')}
               <div className="p-4">
                 <p className="text-base leading-relaxed mb-4 text-stone-600">{place.desc}</p>
 
-                <div className="flex gap-2">
-                  {/* 장소인증 버튼 - GPS 인증 (필수) */}
-                  <button
-                    onClick={() => handleLocationVerify(place.id)}
-                    disabled={place.verified || place.verifying}
-                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl text-sm font-bold transition
-                      ${place.verified
-                        ? 'bg-orange-100 text-orange-600'
-                        : 'bg-orange-500 text-white hover:bg-orange-600'}`}
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      {place.verifying ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> GPS 확인중
-                        </>
-                      ) : place.verified ? (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" /> 장소인증 완료
-                        </>
-                      ) : (
-                        <>
-                          <MapPin className="w-4 h-4" /> 장소인증
-                        </>
-                      )}
-                    </div>
-                    {!place.verifying && (
-                      <span className="text-xs font-semibold opacity-90">필수</span>
-                    )}
-                  </button>
-
-                  {/* 후기인증 버튼 - 모달 오픈 (선택사항) */}
-                  <button
-                    onClick={() => openReviewModal(place.id)}
-                    disabled={!place.verified || place.reviewed}
-                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl text-sm font-bold transition
-                      ${place.reviewed
-                        ? 'bg-amber-100 text-amber-700'
-                        : place.verified
-                        ? 'bg-stone-700 text-white hover:bg-stone-800'
-                        : 'bg-stone-100 text-stone-400'}`}
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      {place.reviewed ? (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" /> 후기인증 완료
-                        </>
-                      ) : (
-                        <>
-                          <Camera className="w-4 h-4" /> 후기인증
-                        </>
-                      )}
-                    </div>
-                    <span className="text-xs font-semibold opacity-90">선택</span>
-                  </button>
-                </div>
-                {!place.verified && (
-                  <p className="text-sm font-medium mt-2 text-stone-500">※ 장소인증 완료 후 후기인증이 가능합니다</p>
-                )}
+                {/* 장소인증 버튼 - GPS 인증 (필수) */}
+                <button
+                  onClick={() => handleLocationVerify(place.id)}
+                  disabled={place.verified || place.verifying}
+                  className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition
+                    ${place.verified
+                      ? 'bg-orange-100 text-orange-600'
+                      : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+                >
+                  {place.verifying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> GPS 확인중
+                    </>
+                  ) : place.verified ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" /> 장소인증 완료
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-4 h-4" /> 장소인증
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           );
         })}
       </div>
-
-      {/* ===== 후기 목록 ===== */}
-      {reviews.length > 0 && (
-        <div className="px-6 mt-7">
-          <h2 className="text-lg font-extrabold px-1 mb-3 text-stone-800">후기 목록</h2>
-          <div className="space-y-3">
-            {reviews.map((r) => (
-              <div key={r.id} className="bg-white rounded-xl shadow-md border border-orange-200 p-3 flex gap-3">
-                {r.photoUrl ? (
-                  <img src={r.photoUrl} alt={r.placeName} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <ImagePlus className="w-6 h-6 text-orange-600" />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-orange-600">{r.placeName}</p>
-                  <p className="text-base line-clamp-2 text-stone-800">{r.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ===== 이벤트 응모 섹션 (인증 완료 후 항상 표시, 제출은 3곳 인증 완료 시에만 가능) ===== */}
       <div className="px-6 mt-8 space-y-4">
@@ -1274,45 +1157,31 @@ ${new Date().toLocaleString('ko-KR')}
             </div>
 
             <div className="p-6 space-y-4">
-              {hasAnyPhoto ? (
-                <>
-                  <div className="bg-orange-100 border-2 border-orange-600 rounded-xl p-4">
-                    <p className="text-base font-extrabold leading-relaxed text-red-600">
-                      이메일 앱이 열리면 조금 전 업로드하신 후기 사진을<br />
-                      꼭 <span className="underline">'첨부파일'</span>로 수동 추가하여 전송해 주세요!
-                    </p>
-                  </div>
-                  <p className="text-sm leading-relaxed text-stone-600">
-                    mailto: 방식은 보안상 사진을 자동으로 첨부할 수 없어요.<br />
-                    이메일 앱이 열리면 <span className="font-bold text-orange-600">사진 첨부 버튼</span>을 눌러
-                    갤러리에서 후기 사진을 직접 추가한 뒤 전송해주세요.
-                  </p>
-                </>
-              ) : (
-                <div className="bg-stone-100 border border-stone-200 rounded-xl p-4">
-                  <p className="text-sm leading-relaxed text-stone-600">
-                    등록하신 후기 사진이 없어서, 사진 없이 응모 내역만 제출돼요.
-                  </p>
-                </div>
-              )}
+              <div className="bg-orange-100 border-2 border-orange-600 rounded-xl p-4 space-y-2">
+                <p className="text-sm leading-relaxed text-stone-700">
+                  <span className="font-extrabold text-red-600">① 스탬프 투어 결과는 반드시 메일로 송부해야 접수가 완료돼요.</span><br />
+                  아래 버튼을 눌러 이메일 앱을 열고, 꼭 <b>'보내기'</b>까지 눌러주세요.
+                </p>
+                <p className="text-sm leading-relaxed text-stone-700">
+                  <span className="font-extrabold text-orange-600">② 후기 사진을 등록하면 이벤트 당첨 확률이 높아져요!</span><br />
+                  사진이 있다면 이메일 앱에서 <b>'첨부파일'</b>로 직접 추가해서 함께 보내주세요.
+                </p>
+              </div>
 
-              {/* 후기인증(선택) 단계에서 사진을 등록했는지 여부에 따라 둘 중 하나의 버튼만 자동으로 표시 */}
+              {/* 사진 첨부 여부는 사용자가 직접 선택 (이메일 본문 안내 문구만 달라짐) */}
               <div className="space-y-2 pt-2">
-                {hasAnyPhoto ? (
-                  <button
-                    onClick={() => finalizeSubmit(true)}
-                    className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
-                  >
-                    후기 사진을 첨부파일로 추가하기
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => finalizeSubmit(false)}
-                    className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
-                  >
-                    후기 사진 없이 제출하기
-                  </button>
-                )}
+                <button
+                  onClick={() => finalizeSubmit(true)}
+                  className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                >
+                  후기사진 첨부 후 메일 제출 완료하기
+                </button>
+                <button
+                  onClick={() => finalizeSubmit(false)}
+                  className="w-full py-3 rounded-full text-sm font-bold bg-stone-100 hover:bg-stone-200 text-stone-600"
+                >
+                  후기사진 없이 메일 제출 완료하기
+                </button>
               </div>
             </div>
           </div>
@@ -1370,52 +1239,6 @@ ${new Date().toLocaleString('ko-KR')}
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== 후기인증 모달 ===== */}
-      {reviewModalId !== null && (
-        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
-          <div className="w-full max-w-md bg-white rounded-t-3xl p-5 pb-8 overflow-y-auto" style={{ maxHeight: '85vh' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-extrabold text-stone-800">
-                {places.find((p) => p.id === reviewModalId)?.name} 후기인증
-              </h3>
-              <button onClick={() => setReviewModalId(null)}>
-                <X className="w-5 h-5 text-stone-500" />
-              </button>
-            </div>
-
-            {/* 사진 업로드 영역 */}
-            <label className="block w-full border-2 border-dashed border-orange-400 rounded-2xl h-32 flex flex-col items-center justify-center cursor-pointer mb-4 overflow-hidden bg-orange-100">
-              {reviewPhoto ? (
-                <img src={reviewPhoto.url} alt="미리보기" className="w-full h-full object-cover" />
-              ) : (
-                <>
-                  <Camera className="w-7 h-7 mb-1 text-orange-600" />
-                  <span className="text-sm font-semibold text-orange-600">사진 촬영 / 앨범에서 선택</span>
-                </>
-              )}
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            </label>
-
-            {/* 후기 텍스트 */}
-            <textarea
-              value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
-              placeholder="방문 후기를 남겨주세요 (사진과 함께라면 당첨 확률 UP!)"
-              rows={4}
-              className="w-full border border-orange-100 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none mb-4 text-stone-800"
-            />
-
-            <button
-              onClick={submitReview}
-              disabled={!reviewText.trim()}
-              className="w-full py-3 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600 disabled:bg-stone-200 disabled:text-stone-400"
-            >
-              후기 등록하기
-            </button>
           </div>
         </div>
       )}
