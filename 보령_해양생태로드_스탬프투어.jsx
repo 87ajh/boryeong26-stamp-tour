@@ -453,7 +453,7 @@ export default function StampTourApp() {
       ? `★[필수 확인] 메일 발송 전, 후기 사진을 이메일의 '첨부파일'로 꼭 추가해서 전송해 주세요! ★
 
 `
-      : `[안내] 참가자가 '후기사진 없이 메일 제출 완료하기'를 선택하여 사진 첨부 없이 응모합니다.
+      : `[안내] 참가자가 '스탬프 투어 메일로 최종 제출하기'를 선택하여 사진 첨부 없이 응모합니다.
 
 `;
 
@@ -1124,7 +1124,7 @@ ${new Date().toLocaleString('ko-KR')}
             <div className="p-6 space-y-4">
               <div className="bg-orange-100 border-2 border-orange-600 rounded-xl p-4 space-y-2">
                 <p className="text-sm leading-relaxed text-stone-700">
-                  <span className="font-extrabold text-red-600">① 스탬프 투어 결과는 반드시 메일로 송부해야 접수가 완료돼요.</span><br />
+                  <span className="font-extrabold text-red-600">① 스탬프 투어 결과는 반드시 메일로 제출해야 접수가 완료돼요.</span><br />
                   아래 버튼을 눌러 이메일 앱을 열고, 꼭 <b>'보내기'</b>까지 눌러주세요.
                 </p>
                 <p className="text-sm leading-relaxed text-stone-700">
@@ -1136,16 +1136,16 @@ ${new Date().toLocaleString('ko-KR')}
               {/* 사진 첨부 여부는 사용자가 직접 선택 (이메일 본문 안내 문구만 달라짐) */}
               <div className="space-y-2 pt-2">
                 <button
-                  onClick={() => finalizeSubmit(true)}
-                  className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
-                >
-                  후기사진 첨부 후 메일 제출 완료하기
-                </button>
-                <button
                   onClick={() => finalizeSubmit(false)}
                   className="w-full py-3 rounded-full text-sm font-bold bg-stone-100 hover:bg-stone-200 text-stone-600"
                 >
-                  후기사진 없이 메일 제출 완료하기
+                  스탬프 투어 메일로 최종 제출하기
+                </button>
+                <button
+                  onClick={() => finalizeSubmit(true)}
+                  className="w-full py-3 rounded-full text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                >
+                  후기사진 첨부 후 메일로 최종 제출하기
                 </button>
               </div>
             </div>
