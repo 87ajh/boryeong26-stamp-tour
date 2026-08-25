@@ -172,7 +172,6 @@ export default function StampTourApp() {
 
   // ===== GPS 인증 관련 상태 =====
   const [gpsTestModal, setGpsTestModal] = useState(null); // { placeId, distance }
-  const [gpsForceConfirm, setGpsForceConfirm] = useState(null); // 강제 인증 대기 중인 placeId
 
   // ===== 참여자 정보 =====
   const [form, setForm] = useState({ name: '', phone: '', email: '' });
@@ -191,6 +190,7 @@ export default function StampTourApp() {
   const [extraText, setExtraText] = useState(''); // 후기 및 SNS 인증 내용
   const [isEditingExtra, setIsEditingExtra] = useState(true); // true=입력/수정 모드, false=조회(읽기전용) 모드
   const [editBackup, setEditBackup] = useState(null); // 수정 취소 시 되돌릴 이전 값 { photo, text }
+  const [showSendConfirm, setShowSendConfirm] = useState(false); // 메일 앱에서 돌아온 뒤 '실제로 보냈는지' 확인하는 팝업
   const [showResendComplete, setShowResendComplete] = useState(false); // 메일 발송 완료 안내 팝업
   const [showMailtoConfirm, setShowMailtoConfirm] = useState(false); // 필수 확인사항 모달
 
@@ -293,36 +293,6 @@ export default function StampTourApp() {
   // 화면 노출 여부와 무관하게 실제 제출 가능 조건에 3곳 장소인증 완료를 명시적으로 포함
   const canSubmit = allVerified && allAgreed && form.name.trim() && form.phone.trim() && form.email.trim();
 
-  // ===== [테스트용] 중복참여 플래그 초기화 후 처음 화면으로 되돌리기 =====
-  const handleResetTest = () => {
-    try {
-      localStorage.removeItem('stamp_tour_submitted');
-      localStorage.removeItem('stamp_tour_progress');
-      localStorage.removeItem('stamp_tour_submission');
-    } catch (e) {
-      // localStorage를 사용할 수 없는 환경이면 무시
-    }
-    // 새로고침 대신 모든 화면 상태를 직접 초기값으로 되돌림
-    // (일부 미리보기 환경에서는 location.reload()가 정상 동작하지 않을 수 있어 이 방식을 사용)
-    setAlreadySubmitted(false);
-    setJustSubmitted(false);
-    setAuthenticated(false);
-    setForm({ name: '', phone: '', email: '' });
-    setPlaces(INITIAL_PLACES.map((p) => ({ ...p, verified: false, verifying: false })));
-    setAgreements([false, false, false, false]);
-    setGpsTestModal(null);
-    setAgreementModalIdx(null);
-    setShowMailtoConfirm(false);
-    setShowInquiryModal(false);
-    setInquiryData(null);
-    setExtraPhoto(null);
-    setExtraText('');
-    setIsEditingExtra(true);
-    setEditBackup(null);
-    setShowResendComplete(false);
-    showToast('처음 화면으로 초기화되었습니다');
-  };
-
   // ===== [화면 1] 개인 인증(이름/핸드폰/이메일) 확인 후 스탬프 화면으로 전환 =====
   const handleStartAuth = () => {
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
@@ -359,7 +329,7 @@ export default function StampTourApp() {
               showToast(`✓ ${place.name} 장소인증 완료!`);
             }, 1000);
           } else {
-            // 200m 초과: 테스트용 모달 표시 (실제 거리 정보 포함)
+            // 200m 초과: 범위 초과 안내 모달 표시 (실제 거리 정보 포함)
             setTimeout(() => {
               setPlaces((prev) =>
                 prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
@@ -369,7 +339,7 @@ export default function StampTourApp() {
           }
         },
         (error) => {
-          // GPS 수신 실패: 실패 사유별로 안내 메시지를 구분해서 테스트용 모달에 표시
+          // GPS 수신 실패: 실패 사유별로 안내 메시지를 구분해서 모달에 표시
           // 1=권한 거부, 2=위치 확인 불가, 3=시간 초과
           let errorMessage = '위치 정보를 수신할 수 없습니다.';
           if (error.code === 1) {
@@ -394,7 +364,7 @@ export default function StampTourApp() {
         }
       );
     } else {
-      // Geolocation API 미지원: 테스트용 모달 표시
+      // Geolocation API 미지원: 안내 모달 표시
       setTimeout(() => {
         setPlaces((prev) =>
           prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
@@ -409,18 +379,16 @@ export default function StampTourApp() {
     }
   };
 
-  // ===== 테스트 모달에서 '네(테스트 진행)' 버튼 클릭 시 강제 인증 =====
-  const handleForceVerify = () => {
+  // ===== GPS 인증 실패/범위초과 안내 모달에서 '다시 시도' 버튼 클릭 시 재측정 =====
+  const handleRetryVerify = () => {
     if (gpsTestModal) {
-      setPlaces((prev) =>
-        prev.map((p) => (p.id === gpsTestModal.placeId ? { ...p, verified: true } : p))
-      );
-      showToast(`✓ ${gpsTestModal.placeName} 장소인증 완료! (테스트 진행)`);
+      const placeId = gpsTestModal.placeId;
       setGpsTestModal(null);
+      handleLocationVerify(placeId);
     }
   };
 
-  // ===== 테스트 모달에서 '아니오' 버튼 클릭 시 취소 =====
+  // ===== GPS 인증 실패/범위초과 안내 모달 닫기 =====
   const handleCancelVerify = () => {
     setGpsTestModal(null);
   };
@@ -610,9 +578,22 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
     );
     const mailtoLink = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
     window.location.href = mailtoLink;
+    // mailto:는 메일 앱을 여는 것까지만 할 수 있고, 실제로 '보내기'를 눌렀는지는 알 수 없음
+    // → 바로 완료 처리하지 않고, 메일 앱에서 돌아온 사용자에게 직접 전송 여부를 확인받음
+    setShowSendConfirm(true);
+  };
+
+  // ===== [당첨확률 높이기] 메일 앱에서 돌아온 뒤 '정말 보냈는지' 확인 =====
+  const confirmSendCompleted = () => {
+    setShowSendConfirm(false);
     setEditBackup(null);
-    setIsEditingExtra(false); // 저장 완료 후 조회(읽기전용) 모드로 전환
-    setShowResendComplete(true); // 완료 안내 팝업 표시 (사진 등록 여부에 따라 문구가 달라짐)
+    setIsEditingExtra(false); // 실제로 보냈다고 확인한 경우에만 조회(읽기전용) 모드로 전환
+    setShowResendComplete(true);
+  };
+
+  const confirmSendFailed = () => {
+    // 보내지 않았다면 완료 처리하지 않고 수정 모드에 그대로 남겨 다시 시도할 수 있게 함
+    setShowSendConfirm(false);
   };
 
 
@@ -683,8 +664,8 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
                         <input type="file" accept="image/*" className="hidden" onChange={handleExtraPhotoChange} />
                       </label>
 
-                      {/* SNS링크등록 및 댓글달기 (수정 모드) */}
-                      <label className="text-sm font-bold text-stone-800 mb-1.5 block">SNS링크등록 및 댓글달기</label>
+                      {/* SNS링크 등록 및 후기 작성 (수정 모드) */}
+                      <label className="text-sm font-bold text-stone-800 mb-1.5 block">SNS링크 등록 및 후기 작성</label>
                       <textarea
                         value={extraText}
                         onChange={(e) => setExtraText(e.target.value)}
@@ -749,6 +730,38 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
       )}
 
       {/* ===== 메일 송부 완료 팝업 (당첨확률 높이기 메일 앱 실행 직후) ===== */}
+      {/* ===== 메일 전송 여부 확인 팝업 (mailto는 실제 전송 여부를 알 수 없어 사용자에게 직접 확인받음) ===== */}
+      {showSendConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl overflow-hidden shadow-xl text-center">
+            <div className="px-6 pt-8 pb-6">
+              <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-9 h-9 text-orange-500" />
+              </div>
+              <h3 className="text-lg font-extrabold text-stone-800 mb-2">메일을 전송하셨나요?</h3>
+              <p className="text-sm text-stone-600 leading-relaxed">
+                이메일 앱에서 '보내기'까지 완료하셨다면<br />
+                '네, 보냈어요'를 눌러주세요.
+              </p>
+            </div>
+            <div className="flex border-t border-stone-100">
+              <button
+                onClick={confirmSendFailed}
+                className="flex-1 py-3 text-sm font-bold text-stone-500 hover:bg-stone-50"
+              >
+                아니요, 다시 할게요
+              </button>
+              <button
+                onClick={confirmSendCompleted}
+                className="flex-1 py-3 text-sm font-bold text-orange-600 hover:bg-orange-50 border-l border-stone-100"
+              >
+                네, 보냈어요
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showResendComplete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
           <div className="w-full max-w-sm bg-white rounded-2xl overflow-hidden shadow-xl text-center">
@@ -795,14 +808,6 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
           className="mt-6 w-full py-3.5 rounded-2xl text-base font-extrabold bg-white border-2 border-orange-500 text-orange-600 shadow-md hover:bg-orange-50"
         >
           🎁 당첨확률 높이기(응모조회)
-        </button>
-
-        {/* 테스트용 초기화 버튼 - 실제 배포 시 제거 권장 */}
-        <button
-          onClick={handleResetTest}
-          className="mt-8 text-xs text-stone-400 underline underline-offset-2 hover:text-stone-600"
-        >
-          🔧 테스트용 초기화 (처음 화면으로)
         </button>
 
         {inquiryModals}
@@ -873,14 +878,6 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
           <p><span className="font-bold">이벤트 대상:</span> 만 14세 이상 누구나</p>
           <p><span className="font-bold">당첨자 발표:</span> 12/7(월) (※ 해양환경공단 홈페이지)</p>
         </div>
-
-        {/* 테스트용 초기화 버튼 - 실제 배포 시 제거 권장 */}
-        <button
-          onClick={handleResetTest}
-          className="mt-3 text-xs text-stone-500 underline underline-offset-2 hover:text-stone-700"
-        >
-          🔧 테스트용 초기화
-        </button>
       </div>
 
       {/* ===== 경품 정보 ===== */}
@@ -1160,14 +1157,14 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
         </div>
       )}
 
-      {/* ===== GPS 인증 테스트 모달 (200m 범위 벗어났을 때) ===== */}
+      {/* ===== GPS 인증 실패/범위초과 안내 모달 ===== */}
       {gpsTestModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6">
           <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl">
             <div className="bg-orange-600 px-6 py-6">
               <div className="flex items-center gap-3 mb-2">
                 <AlertCircle className="w-6 h-6 text-white" />
-                <h3 className="text-xl font-extrabold text-white">위치 인증 확인</h3>
+                <h3 className="text-xl font-extrabold text-white">위치 인증 실패</h3>
               </div>
             </div>
 
@@ -1179,7 +1176,7 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
                   <p className="text-sm font-medium mb-1 text-stone-600">현재 위치와의 거리:</p>
                   <p className="text-2xl font-extrabold text-orange-600">{gpsTestModal.distance}m</p>
                   <p className="text-sm font-medium mt-2 text-stone-500">
-                    ※ 해당 장소의 200m 이내에 있지 않습니다.
+                    ※ 해당 장소의 200m 이내에서만 인증할 수 있어요.
                   </p>
                 </div>
               )}
@@ -1193,7 +1190,7 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
               )}
 
               <p className="text-sm leading-relaxed text-stone-600">
-                <span className="font-bold text-stone-800">테스트 모드:</span> 아래 버튼으로 스탬프를 강제로 찍을 수 있습니다.
+                해당 장소를 직접 방문하신 후 다시 시도해주세요.
               </p>
 
               <div className="flex gap-2 pt-2">
@@ -1201,13 +1198,13 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
                   onClick={handleCancelVerify}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-stone-100 hover:bg-stone-200 text-stone-600"
                 >
-                  아니오
+                  닫기
                 </button>
                 <button
-                  onClick={handleForceVerify}
+                  onClick={handleRetryVerify}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
                 >
-                  네 (테스트 진행)
+                  다시 시도
                 </button>
               </div>
             </div>
