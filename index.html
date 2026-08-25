@@ -224,6 +224,8 @@ function StampTourApp() {
   const [inquiryData, setInquiryData] = useState(null); // 조회된 응모 기록 (없으면 null)
   const [extraPhoto, setExtraPhoto] = useState(null); // 후기 사진 (base64)
   const [extraText, setExtraText] = useState(''); // 후기 및 SNS 인증 내용
+  const [isEditingExtra, setIsEditingExtra] = useState(true); // true=입력/수정 모드, false=조회(읽기전용) 모드
+  const [editBackup, setEditBackup] = useState(null); // 수정 취소 시 되돌릴 이전 값 { photo, text }
   const [showResendComplete, setShowResendComplete] = useState(false); // 메일 발송 완료 안내 팝업
   const [showMailtoConfirm, setShowMailtoConfirm] = useState(false); // 필수 확인사항 모달
 
@@ -350,6 +352,8 @@ function StampTourApp() {
     setInquiryData(null);
     setExtraPhoto(null);
     setExtraText('');
+    setIsEditingExtra(true);
+    setEditBackup(null);
     setShowResendComplete(false);
     showToast('처음 화면으로 초기화되었습니다');
   };
@@ -559,13 +563,35 @@ function StampTourApp() {
   const openInquiryModal = () => {
     try {
       const saved = localStorage.getItem('stamp_tour_submission');
-      setInquiryData(saved ? JSON.parse(saved) : null);
-      setExtraPhoto(saved ? JSON.parse(saved).extraPhoto || null : null);
-      setExtraText(saved ? JSON.parse(saved).extraText || '' : '');
+      const parsed = saved ? JSON.parse(saved) : null;
+      setInquiryData(parsed);
+      const savedPhoto = parsed?.extraPhoto || null;
+      const savedText = parsed?.extraText || '';
+      setExtraPhoto(savedPhoto);
+      setExtraText(savedText);
+      // 이미 등록해둔 사진/후기가 있으면 조회(읽기전용) 모드로, 없으면 바로 입력 가능하도록 수정 모드로 시작
+      setIsEditingExtra(!(savedPhoto || savedText.trim()));
     } catch (e) {
       setInquiryData(null);
+      setIsEditingExtra(true);
     }
     setShowInquiryModal(true);
+  };
+
+  // ===== [당첨확률 높이기] '수정하기' 클릭 시: 현재 값을 백업해두고 수정 모드로 전환 =====
+  const startEditExtra = () => {
+    setEditBackup({ photo: extraPhoto, text: extraText });
+    setIsEditingExtra(true);
+  };
+
+  // ===== [당첨확률 높이기] '취소' 클릭 시: 백업해둔 값으로 되돌리고 조회 모드로 복귀 =====
+  const cancelEditExtra = () => {
+    if (editBackup) {
+      setExtraPhoto(editBackup.photo);
+      setExtraText(editBackup.text);
+    }
+    setEditBackup(null);
+    setIsEditingExtra(false);
   };
 
   // ===== [당첨확률 높이기] 사진등록 - 선택 즉시 압축 후 미리보기 저장 =====
@@ -619,7 +645,9 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
     );
     const mailtoLink = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
     window.location.href = mailtoLink;
-    setShowResendComplete(true); // 메일 앱 실행 완료 안내 팝업 표시
+    setEditBackup(null);
+    setIsEditingExtra(false); // 저장 완료 후 조회(읽기전용) 모드로 전환
+    setShowResendComplete(true); // 완료 안내 팝업 표시 (사진 등록 여부에 따라 문구가 달라짐)
   };
 
 
@@ -672,37 +700,82 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
 
                 <div className="border-t border-orange-100 pt-4">
                   <p className="text-sm font-bold text-stone-800 mb-1">📸 후기 사진 · SNS 인증으로 당첨확률 UP!</p>
-                  <p className="text-xs text-stone-500 mb-3">사진을 등록하거나, 방문 후기 또는 SNS 게시물 링크를 남겨주세요.</p>
 
-                  {/* 사진등록 */}
-                  <label className="block w-full border-2 border-dashed border-orange-400 rounded-2xl h-32 flex flex-col items-center justify-center cursor-pointer mb-3 overflow-hidden bg-orange-50">
-                    {extraPhoto ? (
-                      <img src={extraPhoto} alt="미리보기" className="w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        <span className="text-2xl mb-1">📷</span>
-                        <span className="text-sm font-semibold text-orange-600">사진등록 (촬영 / 앨범에서 선택)</span>
-                      </>
-                    )}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleExtraPhotoChange} />
-                  </label>
+                  {isEditingExtra ? (
+                    <>
+                      <p className="text-xs text-stone-500 mb-3">사진을 등록하거나, 방문 후기 또는 SNS 게시물 링크를 남겨주세요.</p>
 
-                  {/* SNS링크등록 및 댓글달기 */}
-                  <label className="text-sm font-bold text-stone-800 mb-1.5 block">SNS링크등록 및 댓글달기</label>
-                  <textarea
-                    value={extraText}
-                    onChange={(e) => setExtraText(e.target.value)}
-                    placeholder="방문 후기를 작성하거나, SNS 게시물 링크와 댓글 내용을 붙여넣어주세요"
-                    rows={4}
-                    className="w-full border border-orange-100 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none mb-3 text-stone-800"
-                  />
+                      {/* 사진등록 (수정 모드) */}
+                      <label className="block w-full border-2 border-dashed border-orange-400 rounded-2xl h-32 flex flex-col items-center justify-center cursor-pointer mb-3 overflow-hidden bg-orange-50">
+                        {extraPhoto ? (
+                          <img src={extraPhoto} alt="미리보기" className="w-full h-full object-cover" />
+                        ) : (
+                          <>
+                            <span className="text-2xl mb-1">📷</span>
+                            <span className="text-sm font-semibold text-orange-600">사진등록 (촬영 / 앨범에서 선택)</span>
+                          </>
+                        )}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleExtraPhotoChange} />
+                      </label>
 
-                  <button
-                    onClick={submitExtraEntry}
-                    className="w-full py-3 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
-                  >
-                    제출하기
-                  </button>
+                      {/* SNS링크등록 및 댓글달기 (수정 모드) */}
+                      <label className="text-sm font-bold text-stone-800 mb-1.5 block">SNS링크등록 및 댓글달기</label>
+                      <textarea
+                        value={extraText}
+                        onChange={(e) => setExtraText(e.target.value)}
+                        placeholder="방문 후기를 작성하거나, SNS 게시물 링크와 댓글 내용을 붙여넣어주세요"
+                        rows={4}
+                        className="w-full border border-orange-100 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none mb-3 text-stone-800"
+                      />
+
+                      {editBackup ? (
+                        // 기존에 등록된 내용을 고치는 중일 때만 [수정 완료]/[취소] 두 버튼 표시
+                        <div className="flex gap-2">
+                          <button
+                            onClick={cancelEditExtra}
+                            className="flex-1 py-3 rounded-xl text-sm font-bold bg-stone-100 hover:bg-stone-200 text-stone-600"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={submitExtraEntry}
+                            className="flex-1 py-3 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                          >
+                            수정 완료
+                          </button>
+                        </div>
+                      ) : (
+                        // 처음 등록하는 경우: 제출하기 버튼 하나만
+                        <button
+                          onClick={submitExtraEntry}
+                          className="w-full py-3 rounded-xl text-sm font-bold bg-orange-500 text-white hover:bg-orange-600"
+                        >
+                          제출하기
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {/* 조회(읽기전용) 모드: 이미 등록해둔 내용을 텍스트로만 보여줌 */}
+                      <div className="space-y-3 mb-3">
+                        {extraPhoto && (
+                          <img src={extraPhoto} alt="등록된 사진" className="w-full h-40 object-cover rounded-2xl" />
+                        )}
+                        <div>
+                          <p className="text-xs font-bold text-stone-500 mb-1">등록된 후기 · SNS 인증 내용</p>
+                          <p className="text-sm text-stone-800 whitespace-pre-line bg-orange-50 rounded-xl px-3 py-2.5">
+                            {extraText.trim() || '(작성한 내용 없음)'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={startEditExtra}
+                        className="w-full py-3 rounded-xl text-sm font-bold bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50"
+                      >
+                        ✏️ 수정하기
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -718,9 +791,11 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
               <div className="w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-9 h-9 text-white" />
               </div>
-              <h3 className="text-lg font-extrabold text-stone-800 mb-2">메일 송부 완료</h3>
+              <h3 className="text-lg font-extrabold text-stone-800 mb-2">제출 완료</h3>
               <p className="text-sm text-stone-600 leading-relaxed">
-                이메일 앱이 열렸어요. 사진을 첨부하신 뒤<br />꼭 '보내기'를 눌러 전송을 완료해주세요.
+                {extraPhoto
+                  ? <>이메일 앱이 열렸어요. 사진을 첨부하신 뒤<br />꼭 '보내기'를 눌러 전송을 완료해주세요.</>
+                  : '후기 및 SNS 인증 내용 제출이 완료되었습니다.'}
               </p>
             </div>
             <button
