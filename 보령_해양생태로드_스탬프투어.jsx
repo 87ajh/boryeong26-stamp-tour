@@ -34,6 +34,12 @@ const ADMIN_EMAIL = 'boryeong26@koem.or.kr'; // 여기에 실제 관리자(담�
 // 개인정보 처리위탁 동의서에 명시된 "이벤트 종료 및 경품 배송 완료 후 3개월"과 동일하게 맞춤
 const LOCAL_DATA_RETENTION_DAYS = 90;
 
+// GPS 장소인증 허용 반경(미터) - 이 거리 이내면 인증 성공 처리
+const GPS_VERIFY_RADIUS_M = 1000;
+
+// 이벤트 시작 일시 (한국 시간 기준 2026-09-14 00:00) - 이 시각 이전에는 참여 화면 대신 안내 화면만 표시
+const EVENT_START_DATE = new Date('2026-09-14T00:00:00+09:00');
+
 // ===================================================================================================
 
 // ===== 하베신(Haversine) 공식을 이용한 두 좌표 간 거리 계산 함수 =====
@@ -58,10 +64,11 @@ const INITIAL_PLACES = [
     name: '소황사구',
     category: '생태·경관 보전지역',
     desc: "국내 유일의 해안사구로 국내 첫 해양경관보호구역으로 지정('18.12월)",
+    notice: '🌱자연물 훼손 금지! 사구 내 식물 등 자연물을 채취하면 안 돼요.\n🚯 쓰레기 투기 금지! 가져오신 쓰레기는 반드시 다시 가져가 주세요.',
     Icon: Waves,
     grad: 'from-amber-200 to-orange-300', // 사구의 황금빛 모래 톤
-    latitude: 36.2238,
-    longitude: 126.5244,
+    latitude: 36.2015125,
+    longitude: 126.5391719,
   },
   {
     id: 2,
@@ -70,8 +77,8 @@ const INITIAL_PLACES = [
     desc: "무창포~닭벼슬섬 구간 연륙교 제거 및 교량화로 갯벌생태계 복원사업 완료('21.12월)",
     Icon: Shell, // 갯벌 조개/생물 모양 아이콘 (lucide-react 0.383.0엔 crab/shrimp 아이콘 없음)
     grad: 'from-stone-300 to-amber-400', // 갯벌의 짙은 흙빛 톤
-    latitude: 36.2404,
-    longitude: 126.5332,
+    latitude: 36.2388999,
+    longitude: 126.5293787,
   },
   {
     id: 3,
@@ -80,8 +87,8 @@ const INITIAL_PLACES = [
     desc: '해양환경공단 협력사업지로, 넓은 갯벌을 보유한 살아있는 생태관광 학습장',
     Icon: Sunset,
     grad: 'from-orange-300 to-red-400', // 낙조의 다홍빛 톤
-    latitude: 36.3262161,
-    longitude: 126.5405807,
+    latitude: 36.337235,
+    longitude: 126.532570,
   },
 ];
 
@@ -89,7 +96,7 @@ const INITIAL_PLACES = [
 const AGREEMENTS = [
   {
     label: '[필수]',
-    title: '개인정보 수집 및 이용 동의',
+    title: '14세 이상 확인 및 개인정보 수집·이용 동의',
     subtitle: '[개인정보 수집·이용에 대한 동의]',
     content: `본 이벤트 진행을 위해 아래와 같이 개인정보를 수집·이용합니다. 내용을 자세히 읽으신 후 동의 여부를 결정해 주시기 바랍니다.
 
@@ -165,6 +172,17 @@ const AGREEMENTS = [
 ];
 
 export default function StampTourApp() {
+  // ===== 이벤트 오픈 여부 (2026-09-14 00:00 이전엔 참여 화면 대신 안내만 표시) =====
+  const [isBeforeEventStart, setIsBeforeEventStart] = useState(() => new Date() < EVENT_START_DATE);
+
+  useEffect(() => {
+    // 페이지를 열어둔 채로 자정을 넘기는 경우까지 대비해 주기적으로 재확인
+    const timer = setInterval(() => {
+      setIsBeforeEventStart(new Date() < EVENT_START_DATE);
+    }, 30000); // 30초마다 확인
+    return () => clearInterval(timer);
+  }, []);
+
   // ===== 스탬프 상태 =====
   const [places, setPlaces] = useState(
     INITIAL_PLACES.map((p) => ({ ...p, verified: false, verifying: false }))
@@ -302,7 +320,7 @@ export default function StampTourApp() {
     setAuthenticated(true);
   };
 
-  // ===== GPS 장소인증 (하베신 공식 + 200m 범위 확인) =====
+  // ===== GPS 장소인증 (하베신 공식 + 허용 반경 확인) =====
   const handleLocationVerify = (placeId) => {
     const place = places.find((p) => p.id === placeId);
     if (!place) return;
@@ -320,8 +338,8 @@ export default function StampTourApp() {
           // 하베신 공식으로 사용자 위치와 장소 간 거리 계산 (단위: 미터)
           const distance = calculateDistance(userLat, userLon, place.latitude, place.longitude);
 
-          // 200m 이내면 바로 인증 성공
-          if (distance <= 200) {
+          // 허용 반경 이내면 바로 인증 성공
+          if (distance <= GPS_VERIFY_RADIUS_M) {
             setTimeout(() => {
               setPlaces((prev) =>
                 prev.map((p) => (p.id === placeId ? { ...p, verifying: false, verified: true } : p))
@@ -329,7 +347,7 @@ export default function StampTourApp() {
               showToast(`✓ ${place.name} 장소인증 완료!`);
             }, 1000);
           } else {
-            // 200m 초과: 범위 초과 안내 모달 표시 (실제 거리 정보 포함)
+            // 허용 반경 초과: 범위 초과 안내 모달 표시 (실제 거리 정보 포함)
             setTimeout(() => {
               setPlaces((prev) =>
                 prev.map((p) => (p.id === placeId ? { ...p, verifying: false } : p))
@@ -359,7 +377,7 @@ export default function StampTourApp() {
         {
           // 3초는 실제 GPS가 위치를 확정하기엔 너무 짧아 장소와 무관하게 자주 실패했음 → 15초로 연장
           timeout: 15000,
-          enableHighAccuracy: true, // 정확도를 높여 200m 판정 오차를 줄임 (네트워크 기반 대략 위치 대신 실제 GPS 사용)
+          enableHighAccuracy: true, // 정확도를 높여 판정 오차를 줄임 (네트워크 기반 대략 위치 대신 실제 GPS 사용)
           maximumAge: 10000, // 10초 이내에 확인한 위치가 있으면 재사용해 다음 장소 인증 시 더 빠르게 응답
         }
       );
@@ -664,8 +682,8 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
                         <input type="file" accept="image/*" className="hidden" onChange={handleExtraPhotoChange} />
                       </label>
 
-                      {/* SNS링크 등록 및 후기 작성 (수정 모드) */}
-                      <label className="text-sm font-bold text-stone-800 mb-1.5 block">SNS링크 등록 및 후기 작성</label>
+                      {/* SNS링크등록 및 댓글달기 (수정 모드) */}
+                      <label className="text-sm font-bold text-stone-800 mb-1.5 block">SNS링크등록 및 댓글달기</label>
                       <textarea
                         value={extraText}
                         onChange={(e) => setExtraText(e.target.value)}
@@ -782,6 +800,24 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
       )}
     </>
   );
+
+  if (isBeforeEventStart) {
+    return (
+      <div className="min-h-screen w-full max-w-md mx-auto overflow-x-hidden bg-orange-50 flex flex-col items-center justify-center px-8 text-center">
+        <div className="w-24 h-24 rounded-full bg-orange-500 flex items-center justify-center mb-6">
+          <span className="text-5xl">🔔</span>
+        </div>
+        <h1 className="text-2xl font-extrabold mb-3 text-stone-800">이벤트 기간이 아닙니다</h1>
+        <p className="leading-relaxed text-base text-stone-600">
+          오픈 일정을 확인하시어<br />기간 내에 참여해 주세요!
+        </p>
+        <div className="mt-6 bg-white rounded-2xl px-6 py-4 shadow-md w-full border border-orange-200">
+          <p className="text-base font-semibold text-stone-600">이벤트 기간</p>
+          <p className="text-xl font-extrabold text-orange-600 mt-1">2026.9.14 ~ 2026.11.30</p>
+        </div>
+      </div>
+    );
+  }
 
   if (alreadySubmitted) {
     return (
@@ -1016,7 +1052,12 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
               </div>
 
               <div className="p-4">
-                <p className="text-base leading-relaxed mb-4 text-stone-600">{place.desc}</p>
+                <p className="text-base leading-relaxed mb-2 text-stone-600">{place.desc}</p>
+                {place.notice && (
+                  <p className="text-sm font-bold leading-relaxed mb-4 text-red-600 whitespace-pre-line">
+                    {place.notice}
+                  </p>
+                )}
 
                 {/* 장소인증 버튼 - GPS 인증 (필수) */}
                 <button
@@ -1176,7 +1217,7 @@ ${extraPhoto ? `\n★ 이메일 앱이 열리면, 방금 등록하신 사진을 
                   <p className="text-sm font-medium mb-1 text-stone-600">현재 위치와의 거리:</p>
                   <p className="text-2xl font-extrabold text-orange-600">{gpsTestModal.distance}m</p>
                   <p className="text-sm font-medium mt-2 text-stone-500">
-                    ※ 해당 장소의 200m 이내에서만 인증할 수 있어요.
+                    ※ 해당 장소의 {GPS_VERIFY_RADIUS_M}m 이내에서만 인증할 수 있어요.
                   </p>
                 </div>
               )}
